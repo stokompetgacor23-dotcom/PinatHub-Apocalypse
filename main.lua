@@ -166,12 +166,50 @@ logoButton.MouseButton1Click:Connect(function()
 end)
 
 -- Create Tabs
+local InfoTab = Window:Tab({ Title = "Info", Icon = "info", IconColor = Color3.fromHex("#00FFFF"), Border = true })
 local VisualsTab = Window:Tab({ Title = "Visuals", Icon = "eye", IconColor = Color3.fromHex("#00FFFF"), Border = true })
 local PlayerTab = Window:Tab({ Title = "Player", Icon = "user", IconColor = Color3.fromHex("#30FF6A"), Border = true })
 local CombatTab = Window:Tab({ Title = "Combat", Icon = "swords", IconColor = Color3.fromHex("#FF305D"), Border = true })
 local ExploitsTab = Window:Tab({ Title = "Exploits", Icon = "zap", IconColor = Color3.fromHex("#FFD700"), Border = true })
 local MiscTab = Window:Tab({ Title = "Misc", Icon = "settings", IconColor = Color3.fromHex("#9B59B6"), Border = true })
 local CommunityTab = Window:Tab({ Title = "Community", Icon = "message-circle", IconColor = Color3.fromHex("#9B59B6"), Border = true })
+
+-- ============================================
+-- INFO TAB - SUPPORTED MAPS
+-- ============================================
+local supportedMaps = {
+    { name = "Survive The Apocalypse" },
+    { name = "Blade Ball" },
+    { name = "Be a Lucky Block" },
+    { name = "Bite By Night" },
+    { name = "Reel a Brainrot" },
+    { name = "Jump Color Block Steal Brainrots" },
+    { name = "Skateboard For Brainrots" },
+    { name = "Sailor Piece" },
+    { name = "Mutate the Brainrot" },
+    { name = "Blox Fruits" },
+    { name = "Become Invisible For Brainrots" },
+    { name = "The Forge" },
+    { name = "Swing Obby For Brainrots" },
+}
+
+local infoHeader = InfoTab:Section({ Title = "PinatHub Information" })
+
+infoHeader:Paragraph({
+    Title = "Welcome to PinatHub!",
+    Desc = "Created by: @viunze on TikTok"
+})
+
+infoHeader:Divider()
+
+local supportSection = InfoTab:Section({ Title = "Supported Games (" .. #supportedMaps .. " Maps)" })
+
+for _, map in ipairs(supportedMaps) do
+    supportSection:Paragraph({
+        Title = map.name,
+        Desc = ""
+    })
+end
 
 -- ============================================
 -- GLOBAL STORAGE (NILAI DEFAULT)
