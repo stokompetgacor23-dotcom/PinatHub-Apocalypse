@@ -191,6 +191,7 @@ local supportedMaps = {
     { name = "Become Invisible For Brainrots" },
     { name = "The Forge" },
     { name = "Swing Obby For Brainrots" },
+    { name = "Attack on Titan Revolution" },
 }
 
 local infoHeader = InfoTab:Section({ Title = "PinatHub Information" })
