@@ -607,7 +607,7 @@ function UI:BuildExploitsTab(tab)
     local toggles = config:GetToggles()
     local bring = self.Bring
     local farm = self.Farm
-    local autopickup = self.AutoPickup  -- <-- Ambil AutoPickup module
+    local autoPickup = self.AutoPickup  -- <-- Ambil AutoPickup module
     local utils = self.Utils
     local network = self.Network
     local notifications = self.Notifications
