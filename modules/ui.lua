@@ -1,5 +1,5 @@
 -- =======================================================
--- PINATHUB - UI MODULE (FULLY FIXEDD)
+-- PINATHUB - UI MODULE (FULLY FIXED)
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -120,7 +120,7 @@ function UI:SetupProximityPromptAntiDelay(utils)
 end
 
 -- ============================================
--- FIXED INIT FUNCTION with Config validation
+-- INIT FUNCTION
 -- ============================================
 function UI:Init(modules)
     -- Load WindUI library
@@ -146,19 +146,8 @@ function UI:Init(modules)
         return nil
     end
     
-    if not self.Config.GetSupportedMaps then
-        print("ERROR: Config module missing GetSupportedMaps method!")
-        print("Available Config methods:")
-        for k, v in pairs(self.Config) do
-            if type(v) == "function" then
-                print("  - " .. k)
-            end
-        end
-        return nil
-    end
-    
     -- ============================================
-    -- STEP 1: CREATE MAIN WINDOW FIRST
+    -- STEP 1: CREATE MAIN WINDOW
     -- ============================================
     self.Window = WindUI:CreateWindow({
         Title = "PinatHub",
@@ -183,10 +172,6 @@ function UI:Init(modules)
     if self.Notifications and self.Notifications.SetWindow then
         self.Notifications:SetWindow(self.Window)
     end
-    
-    -- Link notifications to other modules
-    if self.Bring then self.Bring.Notifications = self.Notifications end
-    if self.Farm then self.Farm.Notifications = self.Notifications end
     
     -- ============================================
     -- STEP 3: CREATE LOGO
@@ -225,8 +210,8 @@ function UI:Init(modules)
     self:BuildInfoTab(InfoTab)
     self:BuildVisualsTab(VisualsTab)
     self:BuildPlayerTab(PlayerTab)
-    self:BuildCombatTab(CombatTab)
-    self:BuildExploitsTab(ExploitsTab)
+    self:BuildCombatTab(CombatTab)  -- FIXED
+    self:BuildExploitsTab(ExploitsTab)  -- FIXED
     self:BuildMiscTab(MiscTab)
     self:BuildCommunityTab(CommunityTab)
     
@@ -238,23 +223,20 @@ function UI:Init(modules)
 end
 
 -- ============================================
--- INFO TAB (with safe Config access)
+-- INFO TAB
 -- ============================================
 function UI:BuildInfoTab(tab)
     local config = self.Config
     if not config then
-        print("ERROR: Config not available in BuildInfoTab")
         local errorSection = tab:Section({ Title = "Error" })
         errorSection:Paragraph({ Title = "Configuration Error", Desc = "Config module not loaded properly!" })
         return
     end
     
-    -- Safely get supported maps
     local supportedMaps = {}
     if config.GetSupportedMaps then
         supportedMaps = config:GetSupportedMaps()
     else
-        print("WARNING: GetSupportedMaps not found, using default")
         supportedMaps = { { name = "Survive The Apocalypse" } }
     end
     
@@ -275,7 +257,6 @@ function UI:BuildVisualsTab(tab)
     local config = self.Config
     local esp = self.ESP
     
-    -- Skip if no config
     if not config then return end
     
     local options = config:GetOptions()
@@ -376,7 +357,7 @@ function UI:BuildPlayerTab(tab)
 end
 
 -- ============================================
--- COMBAT TAB
+-- COMBAT TAB (FIXED - Auto Hunt berfungsi)
 -- ============================================
 function UI:BuildCombatTab(tab)
     local config = self.Config
@@ -385,12 +366,15 @@ function UI:BuildCombatTab(tab)
     local options = config:GetOptions()
     local toggles = config:GetToggles()
     local farm = self.Farm
+    local network = self.Network
+    local utils = self.Utils
+    local notifications = self.Notifications
     
     -- Kill Aura Section
     local killAuraSection = tab:Section({ Title = "Kill Aura" })
     killAuraSection:Toggle({ Title = "Kill Aura", Default = false, Callback = function(v) 
         toggles.KillAura = v
-        if self.Notifications then self.Notifications:Show("Kill Aura", v and "Enabled" or "Disabled", 2) end
+        if notifications then notifications:Show("Kill Aura", v and "Enabled" or "Disabled", 2) end
     end })
     killAuraSection:Slider({ Title = "Aura Range", Description = "Jarak serangan Kill Aura (3-25 studs)", Value = { Min = 3, Default = 6, Max = 25 }, Callback = function(v) options.KillAuraRange = v end })
     killAuraSection:Dropdown({ Title = "Target Priority", Values = { "Nearest", "Lowest HP", "Highest HP" }, Default = 1, Callback = function(v) options.KillAuraPriority = v end })
@@ -398,17 +382,19 @@ function UI:BuildCombatTab(tab)
     killAuraSection:Toggle({ Title = "Show Target Indicator", Default = true, Callback = function(v) toggles.KillAuraShowIndicator = v end })
     killAuraSection:Toggle({ Title = "Extended Range (+2 studs)", Default = true, Callback = function(v) toggles.KillAuraExtendedRange = v end })
     
-    -- Auto Hunt Section
+    -- Auto Hunt Section (FIXED - Sekarang memanggil farm.StartAutoHunt)
     local autoHuntSection = tab:Section({ Title = "Auto Hunt Zombie" })
     autoHuntSection:Toggle({ Title = "Auto Hunt", Default = false, Callback = function(v) 
         toggles.AutoHunt = v
         if v then 
             if farm and farm.StartAutoHunt then 
-                farm:StartAutoHunt(self.Utils, self.Network, self.Config, self.Notifications) 
+                farm:StartAutoHunt(utils, network, config, notifications)
+            elseif notifications then 
+                notifications:Show("Error", "Farm module not loaded!", 2)
             end
         else 
             if farm and farm.StopAutoHunt then 
-                farm:StopAutoHunt(self.Notifications) 
+                farm:StopAutoHunt(notifications)
             end
         end
     end })
@@ -420,7 +406,7 @@ function UI:BuildCombatTab(tab)
 end
 
 -- ============================================
--- EXPLOITS TAB
+-- EXPLOITS TAB (FIXED - Auto Destroy & Auto Hunt Fuel berfungsi)
 -- ============================================
 function UI:BuildExploitsTab(tab)
     local config = self.Config
@@ -429,11 +415,15 @@ function UI:BuildExploitsTab(tab)
     local options = config:GetOptions()
     local toggles = config:GetToggles()
     local bring = self.Bring
+    local farm = self.Farm
+    local utils = self.Utils
+    local network = self.Network
+    local notifications = self.Notifications
     
     local autoPickupSection = tab:Section({ Title = "Auto Pickup Item" })
     autoPickupSection:Toggle({ Title = "Auto Pickup", Default = false, Callback = function(v) 
         toggles.AutoPickup = v
-        if self.Notifications then self.Notifications:Show("Auto Pickup", v and "Enabled" or "Disabled", 2) end
+        if notifications then notifications:Show("Auto Pickup", v and "Enabled" or "Disabled", 2) end
     end })
     autoPickupSection:Toggle({ Title = "Pickup All Items", Default = true, Callback = function(v) options.AutoPickupAll = v end })
     autoPickupSection:Slider({ Title = "Pickup Range", Description = "Distance to pickup items (12-200)", Value = { Min = 12, Default = 50, Max = 200 }, Callback = function(v) options.AutoPickupRange = v end })
@@ -443,30 +433,53 @@ function UI:BuildExploitsTab(tab)
     bringSection:Toggle({ Title = "Bring Pickup Item", Default = false, Callback = function(v) 
         toggles.BringPickupItem = v
         if v then 
-            if bring and bring.Start then bring:Start(self.Config, self.Network, self.Utils) end
-            if self.Notifications then self.Notifications:Show("Bring Pickup Item", "Enabled!", 2) end
+            if bring and bring.Start then bring:Start(config, network, utils) end
+            if notifications then notifications:Show("Bring Pickup Item", "Enabled!", 2) end
         else 
             if bring and bring.Stop then bring:Stop() end
-            if self.Notifications then self.Notifications:Show("Bring Pickup Item", "Disabled", 2) end
+            if notifications then notifications:Show("Bring Pickup Item", "Disabled", 2) end
         end
     end })
     bringSection:Toggle({ Title = "All Pickup Items", Default = false, Callback = function(v) toggles.BringAllPickup = v end })
     bringSection:Dropdown({ Title = "Sort Order", Values = { "Nearest First", "Farthest First", "Alphabetical", "Reverse Alphabetical" }, Default = 1, Callback = function(v) options.BringPickupSortOrder = v end })
     
-    -- Auto Destroy
+    -- Auto Destroy (FIXED - Sekarang memanggil farm.StartAutoDestroy)
     local autoDestroySection = tab:Section({ Title = "Auto Destroy Structure" })
     autoDestroySection:Toggle({ Title = "Auto Destroy (Barrel & Scrap Pile)", Default = false, Callback = function(v) 
         toggles.AutoDestroyStructure = v
-        if self.Notifications then self.Notifications:Show("Auto Destroy", v and "Enabled" or "Disabled", 2) end
+        if v then 
+            if farm and farm.StartAutoDestroy then 
+                farm:StartAutoDestroy(notifications)
+            elseif notifications then 
+                notifications:Show("Error", "Farm module not loaded!", 2)
+            end
+        else 
+            if farm and farm.StopAutoDestroy then 
+                farm:StopAutoDestroy(notifications)
+            end
+        end
     end })
     
-    -- Auto Hunt Fuel
+    -- Auto Hunt Fuel (FIXED - Sekarang memanggil farm.StartAutoHuntFuel)
     local autoHuntFuelSection = tab:Section({ Title = "Auto Hunt Fuel" })
     autoHuntFuelSection:Toggle({ Title = "Auto Hunt Fuel", Default = false, Callback = function(v) 
         toggles.AutoHuntFuel = v
-        if self.Notifications then self.Notifications:Show("Auto Hunt Fuel", v and "Enabled" or "Disabled", 2) end
+        if v then 
+            if farm and farm.StartAutoHuntFuel then 
+                farm:StartAutoHuntFuel(notifications, options)
+            elseif notifications then 
+                notifications:Show("Error", "Farm module not loaded!", 2)
+            end
+        else 
+            if farm and farm.StopAutoHuntFuel then 
+                farm:StopAutoHuntFuel(notifications)
+            end
+        end
     end })
-    autoHuntFuelSection:Slider({ Title = "Fuel Hunt Range", Description = "Detection range for Fuel (100-5000 studs)", Value = { Min = 100, Default = 500, Max = 5000 }, Callback = function(v) options.FuelHuntRange = v end })
+    autoHuntFuelSection:Slider({ Title = "Fuel Hunt Range", Description = "Detection range for Fuel (100-5000 studs)", Value = { Min = 100, Default = 500, Max = 5000 }, Callback = function(v) 
+        options.FuelHuntRange = v
+        if farm then farm.FuelHuntRange = v end
+    end })
 end
 
 -- ============================================
@@ -510,13 +523,15 @@ end
 -- COMMUNITY TAB
 -- ============================================
 function UI:BuildCommunityTab(tab)
+    local notifications = self.Notifications
+    
     local whatsappSection = tab:Section({ Title = "WhatsApp Group" })
     whatsappSection:Button({ Title = "Join WhatsApp Group", Callback = function()
         if setclipboard then
             setclipboard("https://chat.whatsapp.com/I8hG44FLgrRAwQcS3lvEft")
-            if self.Notifications then self.Notifications:Show("Success", "WhatsApp link copied to clipboard!", 3) end
+            if notifications then notifications:Show("Success", "WhatsApp link copied to clipboard!", 3) end
         else
-            if self.Notifications then self.Notifications:Show("Error", "Clipboard not supported!", 2) end
+            if notifications then notifications:Show("Error", "Clipboard not supported!", 2) end
         end
     end })
     
@@ -524,9 +539,9 @@ function UI:BuildCommunityTab(tab)
     discordSection:Button({ Title = "Join Discord Server", Callback = function()
         if setclipboard then
             setclipboard("https://discord.gg/eDbaHKEf7G")
-            if self.Notifications then self.Notifications:Show("Success", "Discord link copied to clipboard!", 3) end
+            if notifications then notifications:Show("Success", "Discord link copied to clipboard!", 3) end
         else
-            if self.Notifications then self.Notifications:Show("Error", "Clipboard not supported!", 2) end
+            if notifications then notifications:Show("Error", "Clipboard not supported!", 2) end
         end
     end })
 end
