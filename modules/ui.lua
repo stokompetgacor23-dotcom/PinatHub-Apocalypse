@@ -120,9 +120,9 @@ function UI:SetupProximityPromptAntiDelay(utils)
 end
 
 -- ============================================
--- FIXED INIT FUNCTION - Window created first
+-- FIXED INIT FUNCTION with Config validation
 -- ============================================
-function UI:Init(deps)
+function UI:Init(modules)
     -- Load WindUI library
     local WindUI = loadWindUI()
     if not WindUI then 
@@ -130,15 +130,32 @@ function UI:Init(deps)
         return nil
     end
     
-    -- Store dependencies
-    self.Config = deps.Config
-    self.Utils = deps.Utils
-    self.ESP = deps.ESP
-    self.Farm = deps.Farm
-    self.Bring = deps.Bring
-    self.Teleport = deps.Teleport
-    self.Network = deps.Network
-    self.Notifications = deps.Notifications
+    -- Store dependencies from modules table
+    self.Config = modules.config or modules.Config
+    self.Utils = modules.utils or modules.Utils
+    self.ESP = modules.esp or modules.ESP
+    self.Farm = modules.farm or modules.Farm
+    self.Bring = modules.bring or modules.Bring
+    self.Teleport = modules.teleport or modules.Teleport
+    self.Network = modules.network or modules.Network
+    self.Notifications = modules.notifications or modules.Notifications
+    
+    -- Validate Config module
+    if not self.Config then
+        print("ERROR: Config module not found!")
+        return nil
+    end
+    
+    if not self.Config.GetSupportedMaps then
+        print("ERROR: Config module missing GetSupportedMaps method!")
+        print("Available Config methods:")
+        for k, v in pairs(self.Config) do
+            if type(v) == "function" then
+                print("  - " .. k)
+            end
+        end
+        return nil
+    end
     
     -- ============================================
     -- STEP 1: CREATE MAIN WINDOW FIRST
@@ -161,7 +178,7 @@ function UI:Init(deps)
     })
     
     -- ============================================
-    -- STEP 2: SETUP NOTIFICATIONS (Window exists now!)
+    -- STEP 2: SETUP NOTIFICATIONS
     -- ============================================
     if self.Notifications and self.Notifications.SetWindow then
         self.Notifications:SetWindow(self.Window)
@@ -221,11 +238,25 @@ function UI:Init(deps)
 end
 
 -- ============================================
--- INFO TAB
+-- INFO TAB (with safe Config access)
 -- ============================================
 function UI:BuildInfoTab(tab)
     local config = self.Config
-    local supportedMaps = config:GetSupportedMaps()
+    if not config then
+        print("ERROR: Config not available in BuildInfoTab")
+        local errorSection = tab:Section({ Title = "Error" })
+        errorSection:Paragraph({ Title = "Configuration Error", Desc = "Config module not loaded properly!" })
+        return
+    end
+    
+    -- Safely get supported maps
+    local supportedMaps = {}
+    if config.GetSupportedMaps then
+        supportedMaps = config:GetSupportedMaps()
+    else
+        print("WARNING: GetSupportedMaps not found, using default")
+        supportedMaps = { { name = "Survive The Apocalypse" } }
+    end
     
     local infoHeader = tab:Section({ Title = "PinatHub Information" })
     infoHeader:Paragraph({ Title = "Welcome to PinatHub!", Desc = "Created by: @viunze on TikTok" })
@@ -243,6 +274,10 @@ end
 function UI:BuildVisualsTab(tab)
     local config = self.Config
     local esp = self.ESP
+    
+    -- Skip if no config
+    if not config then return end
+    
     local options = config:GetOptions()
     local crateOptions = config:GetCrateOptions()
     
@@ -255,7 +290,7 @@ function UI:BuildVisualsTab(tab)
             esp:SetStructureOptions({ ESP = esp.Options.structure.ESP, Chams = esp.Options.structure.Chams, Name = value, Distance = esp.Options.structure.Distance })
             esp:RefreshAll()
         end
-        crateOptions.Name = value
+        if crateOptions then crateOptions.Name = value end
     end
     
     local function updateDistance(value)
@@ -265,7 +300,7 @@ function UI:BuildVisualsTab(tab)
             esp:SetStructureOptions({ ESP = esp.Options.structure.ESP, Chams = esp.Options.structure.Chams, Name = esp.Options.structure.Name, Distance = value })
             esp:RefreshAll()
         end
-        crateOptions.Distance = value
+        if crateOptions then crateOptions.Distance = value end
     end
     
     espSettingsSection:Toggle({ Title = "Show Names", Default = false, Callback = updateNames })
@@ -298,6 +333,8 @@ end
 -- ============================================
 function UI:BuildPlayerTab(tab)
     local config = self.Config
+    if not config then return end
+    
     local options = config:GetOptions()
     local toggles = config:GetToggles()
     
@@ -343,6 +380,8 @@ end
 -- ============================================
 function UI:BuildCombatTab(tab)
     local config = self.Config
+    if not config then return end
+    
     local options = config:GetOptions()
     local toggles = config:GetToggles()
     local farm = self.Farm
@@ -364,9 +403,13 @@ function UI:BuildCombatTab(tab)
     autoHuntSection:Toggle({ Title = "Auto Hunt", Default = false, Callback = function(v) 
         toggles.AutoHunt = v
         if v then 
-            if farm then farm:StartAutoHunt(self.Utils, self.Network, self.Config, self.Notifications) end
+            if farm and farm.StartAutoHunt then 
+                farm:StartAutoHunt(self.Utils, self.Network, self.Config, self.Notifications) 
+            end
         else 
-            if farm then farm:StopAutoHunt(self.Notifications) end
+            if farm and farm.StopAutoHunt then 
+                farm:StopAutoHunt(self.Notifications) 
+            end
         end
     end })
     autoHuntSection:Slider({ Title = "Hunt Range", Description = "Detection range (500-9999)", Value = { Min = 500, Default = 9999, Max = 9999 }, Callback = function(v) options.HuntRange = v end })
@@ -381,6 +424,8 @@ end
 -- ============================================
 function UI:BuildExploitsTab(tab)
     local config = self.Config
+    if not config then return end
+    
     local options = config:GetOptions()
     local toggles = config:GetToggles()
     local bring = self.Bring
@@ -398,10 +443,10 @@ function UI:BuildExploitsTab(tab)
     bringSection:Toggle({ Title = "Bring Pickup Item", Default = false, Callback = function(v) 
         toggles.BringPickupItem = v
         if v then 
-            if bring then bring:Start(self.Config, self.Network, self.Utils) end
+            if bring and bring.Start then bring:Start(self.Config, self.Network, self.Utils) end
             if self.Notifications then self.Notifications:Show("Bring Pickup Item", "Enabled!", 2) end
         else 
-            if bring then bring:Stop() end
+            if bring and bring.Stop then bring:Stop() end
             if self.Notifications then self.Notifications:Show("Bring Pickup Item", "Disabled", 2) end
         end
     end })
@@ -429,6 +474,8 @@ end
 -- ============================================
 function UI:BuildMiscTab(tab)
     local config = self.Config
+    if not config then return end
+    
     local toggles = config:GetToggles()
     local teleport = self.Teleport
     
@@ -455,8 +502,8 @@ function UI:BuildMiscTab(tab)
     
     -- Server Tools
     local serverSection = tab:Section({ Title = "Server Tools" })
-    serverSection:Button({ Title = "Server Hop", Callback = function() if teleport then teleport:ServerHop() end end })
-    serverSection:Button({ Title = "Rejoin Server", Callback = function() if teleport then teleport:Rejoin() end end })
+    serverSection:Button({ Title = "Server Hop", Callback = function() if teleport and teleport.ServerHop then teleport:ServerHop() end end })
+    serverSection:Button({ Title = "Rejoin Server", Callback = function() if teleport and teleport.Rejoin then teleport:Rejoin() end end })
 end
 
 -- ============================================
