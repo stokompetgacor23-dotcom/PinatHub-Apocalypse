@@ -1,5 +1,5 @@
 -- =======================================================
--- PINATHUB - UI MODULE (COMPLETE WITH ITEM ESP)
+-- PINATHUB - UI MODULE (COMPLETE WITH PLAYER MODULE)
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -139,6 +139,7 @@ function UI:Init(modules)
     self.Teleport = modules.teleport or modules.Teleport
     self.Network = modules.network or modules.Network
     self.Notifications = modules.notifications or modules.Notifications
+    self.Player = modules.player or modules.Player  -- Tambahkan Player module
     
     -- Validate Config module
     if not self.Config then
@@ -208,8 +209,8 @@ function UI:Init(modules)
     -- STEP 5: BUILD ALL UI SECTIONS
     -- ============================================
     self:BuildInfoTab(InfoTab)
-    self:BuildVisualsTab(VisualsTab)  -- Includes Item ESP
-    self:BuildPlayerTab(PlayerTab)
+    self:BuildVisualsTab(VisualsTab)
+    self:BuildPlayerTab(PlayerTab)      -- Updated with Player module
     self:BuildCombatTab(CombatTab)
     self:BuildExploitsTab(ExploitsTab)
     self:BuildMiscTab(MiscTab)
@@ -218,7 +219,7 @@ function UI:Init(modules)
     -- Open window
     self.Window:Open()
     print("UI initialized successfully!")
-    print("Item ESP features available in Visuals Tab!")
+    print("Player features available in Player Tab!")
     
     return self
 end
@@ -252,7 +253,7 @@ function UI:BuildInfoTab(tab)
 end
 
 -- ============================================
--- VISUALS TAB (WITH ITEM ESP - SEPERTI SINGLE FILE)
+-- VISUALS TAB (WITH ITEM ESP)
 -- ============================================
 function UI:BuildVisualsTab(tab)
     local config = self.Config
@@ -263,7 +264,7 @@ function UI:BuildVisualsTab(tab)
     local options = config:GetOptions()
     local crateOptions = config:GetCrateOptions()
     
-    -- ========== ESP SETTINGS SECTION ==========
+    -- ESP Settings Section
     local espSettingsSection = tab:Section({ Title = "ESP Settings" })
     
     local function updateNames(value)
@@ -293,7 +294,7 @@ function UI:BuildVisualsTab(tab)
     espSettingsSection:Toggle({ Title = "Show Names", Default = false, Callback = updateNames })
     espSettingsSection:Toggle({ Title = "Show Distance", Default = false, Callback = updateDistance })
     
-    -- ========== MOB ESP SECTION ==========
+    -- Mob ESP
     local mobSection = tab:Section({ Title = "Mob ESP" })
     mobSection:Toggle({ Title = "Mob ESP", Default = false, Callback = function(v) 
         if esp and esp.SetMobOptions then 
@@ -308,7 +309,7 @@ function UI:BuildVisualsTab(tab)
         end 
     end })
     
-    -- ========== PLAYER ESP SECTION ==========
+    -- Player ESP
     local playerSection = tab:Section({ Title = "Player ESP" })
     playerSection:Toggle({ Title = "Player ESP", Default = false, Callback = function(v) 
         if esp and esp.SetPlayerOptions then 
@@ -329,7 +330,7 @@ function UI:BuildVisualsTab(tab)
         end 
     end })
     
-    -- ========== STRUCTURE ESP SECTION ==========
+    -- Structure ESP
     local structureSection = tab:Section({ Title = "Structure ESP" })
     structureSection:Toggle({ Title = "Structure ESP", Default = false, Callback = function(v) 
         if esp and esp.SetStructureOptions then 
@@ -344,7 +345,7 @@ function UI:BuildVisualsTab(tab)
         end 
     end })
     
-    -- ========== CRATES ESP SECTION ==========
+    -- Crates ESP
     local cratesSection = tab:Section({ Title = "Crates ESP" })
     cratesSection:Toggle({ Title = "Crates ESP", Default = false, Callback = function(v) 
         if crateOptions then crateOptions.ESP = v end
@@ -355,32 +356,28 @@ function UI:BuildVisualsTab(tab)
         if esp and esp.RefreshCrateESP then esp:RefreshCrateESP() end
     end })
     
-    -- ========== ITEM ESP SECTION (SEPERTI SINGLE FILE) ==========
+    -- Item ESP
     local itemSection = tab:Section({ Title = "Item ESP" })
     
-    -- Chams for all categories
     itemSection:Toggle({ 
         Title = "Chams (All Categories)", 
         Default = false, 
         Callback = function(value)
             if esp and esp.SetAllItemChams then
                 esp:SetAllItemChams(value)
-            elseif esp and esp.SetItemChamsAll then
-                esp:SetItemChamsAll(value)
             end
         end 
     })
     
-    -- Individual category toggles
     local itemCategories = {
-        { key = "Gun", text = "Gun ESP", color = "🔫" },
-        { key = "Melee", text = "Melee ESP", color = "⚔️" },
-        { key = "Medical", text = "Medical ESP", color = "💊" },
-        { key = "Armor", text = "Armor ESP", color = "🛡️" },
-        { key = "Food", text = "Food ESP", color = "🍔" },
-        { key = "Resource", text = "Resources ESP", color = "🔧" },
-        { key = "Fuel", text = "Fuel ESP", color = "⛽" },
-        { key = "Ability", text = "Abilities ESP", color = "✨" },
+        { key = "Gun", text = "Gun ESP" },
+        { key = "Melee", text = "Melee ESP" },
+        { key = "Medical", text = "Medical ESP" },
+        { key = "Armor", text = "Armor ESP" },
+        { key = "Food", text = "Food ESP" },
+        { key = "Resource", text = "Resources ESP" },
+        { key = "Fuel", text = "Fuel ESP" },
+        { key = "Ability", text = "Abilities ESP" },
     }
     
     for _, cat in ipairs(itemCategories) do
@@ -390,14 +387,12 @@ function UI:BuildVisualsTab(tab)
             Callback = function(value)
                 if esp and esp.SetItemCategoryESP then
                     esp:SetItemCategoryESP(cat.key, value)
-                elseif esp and esp.ToggleItemESP then
-                    esp:ToggleItemESP(cat.key, value)
                 end
             end 
         })
     end
     
-    -- ========== ESP MAX DISTANCE ==========
+    -- ESP Max Distance
     local distanceSection = tab:Section({ Title = "ESP Distance Settings" })
     distanceSection:Slider({
         Title = "Max Distance",
@@ -412,10 +407,12 @@ function UI:BuildVisualsTab(tab)
 end
 
 -- ============================================
--- PLAYER TAB
+-- PLAYER TAB (UPDATED - Dengan Player Module)
 -- ============================================
 function UI:BuildPlayerTab(tab)
     local config = self.Config
+    local playerModule = self.Player  -- Ambil Player module
+    
     if not config then return end
     
     local options = config:GetOptions()
@@ -423,38 +420,114 @@ function UI:BuildPlayerTab(tab)
     
     local movementSection = tab:Section({ Title = "Movement" })
     
+    -- Speed Hack
     movementSection:Toggle({ Title = "Speed Hack", Default = false, Callback = function(v) 
         toggles.SpeedHack = v
-        if self.Notifications then self.Notifications:Show("Speed Hack", v and "Enabled" or "Disabled", 2) end
+        if v then 
+            if playerModule and playerModule.StartSpeedHack then 
+                playerModule:StartSpeedHack(options.SpeedValue)
+                if self.Notifications then self.Notifications:Show("Speed Hack", "Enabled - " .. options.SpeedValue .. " speed", 2) end
+            end
+        else 
+            if playerModule and playerModule.StopSpeedHack then 
+                playerModule:StopSpeedHack()
+                if self.Notifications then self.Notifications:Show("Speed Hack", "Disabled", 2) end
+            end
+        end
     end })
     
     movementSection:Slider({ Title = "Speed Value", Description = "Custom walk speed (16-120)", Value = { Min = 16, Default = 50, Max = 120 }, Callback = function(v) 
         options.SpeedValue = v
+        if toggles.SpeedHack and playerModule and playerModule.StartSpeedHack then
+            playerModule:StartSpeedHack(v)
+        end
     end })
     
+    -- Infinite Jump
     movementSection:Toggle({ Title = "Inf Jump", Default = false, Callback = function(v) 
         toggles.InfJump = v
-        if self.Notifications then self.Notifications:Show("Inf Jump", v and "Enabled" or "Disabled", 2) end
+        if v then 
+            if playerModule and playerModule.StartInfJump then 
+                playerModule:StartInfJump()
+                if self.Notifications then self.Notifications:Show("Inf Jump", "Enabled", 2) end
+            end
+        else 
+            if playerModule and playerModule.StopInfJump then 
+                playerModule:StopInfJump()
+                if self.Notifications then self.Notifications:Show("Inf Jump", "Disabled", 2) end
+            end
+        end
     end })
     
+    -- NoClip
     movementSection:Toggle({ Title = "NoClip", Default = false, Callback = function(v) 
         toggles.NoClip = v
-        if self.Notifications then self.Notifications:Show("NoClip", v and "Enabled" or "Disabled", 2) end
+        if v then 
+            if playerModule and playerModule.StartNoclip then 
+                playerModule:StartNoclip()
+                if self.Notifications then self.Notifications:Show("NoClip", "Enabled", 2) end
+            end
+        else 
+            if playerModule and playerModule.StopNoclip then 
+                playerModule:StopNoclip()
+                if self.Notifications then self.Notifications:Show("NoClip", "Disabled", 2) end
+            end
+        end
     end })
     
+    -- Fly
     movementSection:Toggle({ Title = "Fly", Default = false, Callback = function(v) 
         toggles.Fly = v
-        if self.Notifications then self.Notifications:Show("Fly", v and "Enabled" or "Disabled", 2) end
+        if v then 
+            if playerModule and playerModule.StartFly then 
+                playerModule:StartFly(options.FlySpeed)
+                if self.Notifications then self.Notifications:Show("Fly", "Enabled - WASD to move, Space/Shift for up/down", 3) end
+            end
+        else 
+            if playerModule and playerModule.StopFly then 
+                playerModule:StopFly()
+                if self.Notifications then self.Notifications:Show("Fly", "Disabled", 2) end
+            end
+        end
     end })
     
+    movementSection:Slider({ Title = "Fly Speed", Description = "Flight speed (20-200)", Value = { Min = 20, Default = 50, Max = 200 }, Callback = function(v) 
+        options.FlySpeed = v
+        if toggles.Fly and playerModule and playerModule.SetFlySpeed then
+            playerModule:SetFlySpeed(v)
+        end
+    end })
+    
+    -- Auto Sprint
     movementSection:Toggle({ Title = "Auto Sprint", Default = false, Callback = function(v) 
         toggles.AutoSprint = v
-        if self.Notifications then self.Notifications:Show("Auto Sprint", v and "Enabled" or "Disabled", 2) end
+        if v then 
+            if playerModule and playerModule.StartAutoSprint then 
+                playerModule:StartAutoSprint()
+                if self.Notifications then self.Notifications:Show("Auto Sprint", "Enabled", 2) end
+            end
+        else 
+            if playerModule and playerModule.StopAutoSprint then 
+                playerModule:StopAutoSprint()
+                if self.Notifications then self.Notifications:Show("Auto Sprint", "Disabled", 2) end
+            end
+        end
     end })
     
+    -- Bunny Hop
     movementSection:Toggle({ Title = "Bunny Hop", Default = false, Callback = function(v) 
         toggles.BunnyHop = v
-        if self.Notifications then self.Notifications:Show("Bunny Hop", v and "Enabled" or "Disabled", 2) end
+        if v then 
+            if playerModule and playerModule.StartBunnyHop then 
+                playerModule:StartBunnyHop()
+                if self.Notifications then self.Notifications:Show("Bunny Hop", "Enabled", 2) end
+            end
+        else 
+            if playerModule and playerModule.StopBunnyHop then 
+                playerModule:StopBunnyHop()
+                if self.Notifications then self.Notifications:Show("Bunny Hop", "Disabled", 2) end
+            end
+        end
     end })
 end
 
@@ -604,23 +677,62 @@ end
 -- ============================================
 function UI:BuildMiscTab(tab)
     local config = self.Config
+    local playerModule = self.Player  -- Untuk utilities
+    
     if not config then return end
     
     local toggles = config:GetToggles()
     local teleport = self.Teleport
+    local options = config:GetOptions()
     
     local utilitySection = tab:Section({ Title = "Utilities" })
+    
+    -- Anti AFK
     utilitySection:Toggle({ Title = "Anti-AFK", Default = true, Callback = function(v) 
         toggles.AntiAFK = v
-        if self.Notifications then self.Notifications:Show("Anti-AFK", v and "Enabled" or "Disabled", 2) end
+        if v then 
+            if playerModule and playerModule.StartAntiAFK then 
+                playerModule:StartAntiAFK()
+            end
+            if self.Notifications then self.Notifications:Show("Anti-AFK", "Enabled", 2) end
+        else 
+            if playerModule and playerModule.StopAntiAFK then 
+                playerModule:StopAntiAFK()
+            end
+            if self.Notifications then self.Notifications:Show("Anti-AFK", "Disabled", 2) end
+        end
     end })
+    
+    -- Fullbright
     utilitySection:Toggle({ Title = "Fullbright", Default = false, Callback = function(v) 
         toggles.Fullbright = v
-        if self.Notifications then self.Notifications:Show("Fullbright", v and "Enabled" or "Disabled", 2) end
+        if v then 
+            if playerModule and playerModule.StartFullbright then 
+                playerModule:StartFullbright()
+            end
+            if self.Notifications then self.Notifications:Show("Fullbright", "Enabled", 2) end
+        else 
+            if playerModule and playerModule.StopFullbright then 
+                playerModule:StopFullbright()
+            end
+            if self.Notifications then self.Notifications:Show("Fullbright", "Disabled", 2) end
+        end
     end })
+    
+    -- Remove Fog
     utilitySection:Toggle({ Title = "Remove Fog", Default = false, Callback = function(v) 
         toggles.RemoveFog = v
-        if self.Notifications then self.Notifications:Show("Remove Fog", v and "Enabled" or "Disabled", 2) end
+        if v then 
+            if playerModule and playerModule.StartRemoveFog then 
+                playerModule:StartRemoveFog()
+            end
+            if self.Notifications then self.Notifications:Show("Remove Fog", "Enabled", 2) end
+        else 
+            if playerModule and playerModule.StopRemoveFog then 
+                playerModule:StopRemoveFog()
+            end
+            if self.Notifications then self.Notifications:Show("Remove Fog", "Disabled", 2) end
+        end
     end })
     
     -- Proximity Prompt Section
@@ -635,15 +747,15 @@ function UI:BuildMiscTab(tab)
     fpsSection:Toggle({ Title = "Unlock FPS", Default = false, Callback = function(v)
         toggles.FPSUnlock = v
         if v then
-            setfpscap(Options.FPSCap or 144)
-            if self.Notifications then self.Notifications:Show("FPS Unlock", "Enabled - " .. (Options.FPSCap or 144) .. " FPS", 2) end
+            setfpscap(options.FPSCap or 144)
+            if self.Notifications then self.Notifications:Show("FPS Unlock", "Enabled - " .. (options.FPSCap or 144) .. " FPS", 2) end
         else
             setfpscap(60)
             if self.Notifications then self.Notifications:Show("FPS Unlock", "Disabled - Back to 60 FPS", 2) end
         end
     end })
     fpsSection:Slider({ Title = "FPS Cap", Description = "Maximum FPS (60-240)", Value = { Min = 60, Default = 144, Max = 240 }, Callback = function(v)
-        Options.FPSCap = v
+        options.FPSCap = v
         if toggles.FPSUnlock then
             setfpscap(v)
         end
