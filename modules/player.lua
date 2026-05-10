@@ -8,23 +8,30 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local VirtualUser = game:GetService("VirtualUser")
 local VirtualInputManager = game:GetService("VirtualInputManager")
+local Lighting = game:GetService("Lighting")
 local LocalPlayer = Players.LocalPlayer
 
-local Player = {}
-
--- State variables
-Player.FlyActive = false
-Player.FlyBV = nil
-Player.FlyBG = nil
-Player.AutoSprintActive = false
-Player.AntiAFKConn = nil
-Player.BhopActive = false
-Player.BhopConn = nil
-Player.NoclipActive = false
-Player.NoclipLastCFrame = nil
-Player.InfJumpActive = false
-Player.OriginalWalkSpeed = nil
-Player.SpeedHackConn = nil
+local Player = {
+    FlyActive = false,
+    FlyBV = nil,
+    FlyBG = nil,
+    FlyMoveConn = nil,
+    FlySpeed = 50,
+    AutoSprintActive = false,
+    AntiAFKConn = nil,
+    BhopActive = false,
+    BhopConn = nil,
+    NoclipActive = false,
+    NoclipConn = nil,
+    NoclipLastCFrame = nil,
+    InfJumpActive = false,
+    JumpConn = nil,
+    SpeedHackConn = nil,
+    OriginalWalkSpeed = nil,
+    Utils = nil,
+    Notifications = nil,
+    Config = nil
+}
 
 -- ============================================
 -- SPEED HACK
@@ -32,6 +39,15 @@ Player.SpeedHackConn = nil
 function Player:StartSpeedHack(speedValue)
     if self.SpeedHackConn then
         self:StopSpeedHack()
+    end
+    
+    -- Store original speed if not already
+    local char = LocalPlayer.Character
+    if char and not self.OriginalWalkSpeed then
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            self.OriginalWalkSpeed = humanoid.WalkSpeed
+        end
     end
     
     self.SpeedHackConn = RunService.Stepped:Connect(function()
@@ -56,13 +72,10 @@ function Player:StopSpeedHack()
     local char = LocalPlayer.Character
     if char then
         local humanoid = char:FindFirstChildOfClass("Humanoid")
-        if humanoid and self.OriginalWalkSpeed then
-            humanoid.WalkSpeed = self.OriginalWalkSpeed
-        elseif humanoid then
-            humanoid.WalkSpeed = 16
+        if humanoid then
+            humanoid.WalkSpeed = self.OriginalWalkSpeed or 16
         end
     end
-    
     print("[SPEED HACK] Disabled")
 end
 
@@ -130,7 +143,6 @@ function Player:StopNoclip()
             end
         end
     end
-    
     print("[NOCLIP] Disabled")
 end
 
@@ -165,7 +177,6 @@ function Player:StartFly(flySpeed)
     self.FlyActive = true
     self.FlySpeed = flySpeed or 50
     
-    -- Movement connection
     self.FlyMoveConn = RunService.RenderStepped:Connect(function()
         if not self.FlyActive then return end
         
@@ -213,10 +224,7 @@ function Player:StartFly(flySpeed)
         end
     end)
     
-    if self.Utils then 
-        self.Utils:AddConnection(self.FlyMoveConn) 
-    end
-    
+    if self.Utils then self.Utils:AddConnection(self.FlyMoveConn) end
     print("[FLY] Enabled - Speed:", flySpeed)
 end
 
@@ -245,7 +253,6 @@ function Player:StopFly()
             humanoid.PlatformStand = false
         end
     end
-    
     print("[FLY] Disabled")
 end
 
@@ -262,24 +269,18 @@ end
 function Player:StartAutoSprint()
     if self.AutoSprintActive then return end
     self.AutoSprintActive = true
-    
-    -- Hold Shift key
     pcall(function()
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
     end)
-    
     print("[AUTO SPRINT] Enabled")
 end
 
 function Player:StopAutoSprint()
     if not self.AutoSprintActive then return end
     self.AutoSprintActive = false
-    
-    -- Release Shift key
     pcall(function()
         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
     end)
-    
     print("[AUTO SPRINT] Disabled")
 end
 
@@ -385,7 +386,6 @@ end
 -- ============================================
 -- FULLBRIGHT
 -- ============================================
-local Lighting = game:GetService("Lighting")
 local originalLighting = { stored = false }
 
 function Player:StartFullbright()
@@ -407,7 +407,6 @@ function Player:StartFullbright()
     Lighting.FogEnd = 100000
     Lighting.FogStart = 0
     Lighting.GlobalShadows = false
-    
     print("[FULLBRIGHT] Enabled")
 end
 
@@ -439,7 +438,6 @@ function Player:StartRemoveFog()
     Lighting.FogEnd = 100000
     Lighting.FogStart = 0
     
-    -- Remove atmosphere fog
     local atm = Lighting:FindFirstChildOfClass("Atmosphere")
     if atm then
         if originalFog.AtmDensity == nil then
@@ -451,7 +449,6 @@ function Player:StartRemoveFog()
         atm.Haze = 0
         atm.Glare = 0
     end
-    
     print("[REMOVE FOG] Enabled")
 end
 
@@ -470,7 +467,6 @@ function Player:StopRemoveFog()
         originalFog.AtmHaze = nil
         originalFog.AtmGlare = nil
     end
-    
     print("[REMOVE FOG] Disabled")
 end
 
@@ -482,7 +478,6 @@ function Player:SetupRespawnHandler()
         char:WaitForChild("HumanoidRootPart", 10)
         task.wait(0.5)
         
-        -- Re-apply active features
         if self.FlyActive then
             self:StartFly(self.FlySpeed)
         end
@@ -499,27 +494,15 @@ function Player:SetupRespawnHandler()
             self:StartBunnyHop()
         end
     end)
-    
-    LocalPlayer.CharacterRemoving:Connect(function()
-        if self.FlyActive then
-            self:StopFly()
-        end
-        if self.AutoSprintActive then
-            self:StopAutoSprint()
-        end
-        if self.NoclipActive then
-            self:StopNoclip()
-        end
-    end)
 end
 
 -- ============================================
 -- INIT
 -- ============================================
-function Player:Init(deps)
-    self.Utils = deps.utils or deps.Utils
-    self.Notifications = deps.notifications or deps.Notifications
-    self.Config = deps.config or deps.Config
+function Player:Init(modules)
+    self.Utils = modules.utils or modules.Utils
+    self.Notifications = modules.notifications or modules.Notifications
+    self.Config = modules.config or modules.Config
     
     -- Store original walk speed
     local char = LocalPlayer.Character
@@ -530,9 +513,7 @@ function Player:Init(deps)
         end
     end
     
-    -- Setup respawn handler
     self:SetupRespawnHandler()
-    
     print("[PLAYER MODULE] Initialized")
     return self
 end
