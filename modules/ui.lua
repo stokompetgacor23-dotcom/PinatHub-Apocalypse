@@ -1,5 +1,5 @@
 -- =======================================================
--- PINATHUB - UI MODULE
+-- PINATHUB - UI MODULE (FIXED)
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -135,13 +135,9 @@ function UI:Init(deps)
     self.Network = deps.Network
     self.Notifications = deps.Notifications
     
-    -- Setup notifications
-    self.Notifications:SetWindow(self.Window)
-    self.Bring.Notifications = self.Notifications
-    self.Farm.Notifications = self.Notifications
-    
-    -- Create logo
-    local logoGui, logoButton = self:CreateLogo()
+    -- ============================================
+    -- FIX: BUAT WINDOW DULU SEBELUM SETWINDOW
+    -- ============================================
     
     -- Create main window
     self.Window = WindUI:CreateWindow({
@@ -154,6 +150,18 @@ function UI:Init(deps)
     })
     
     self.Window:Tag({ Title = "@viunze on tiktok", Icon = "star", Color = Color3.fromHex("#BA00FF"), Border = true })
+    
+    -- ============================================
+    -- FIX: BARU SETELAH WINDOW ADA, SETUP NOTIFICATIONS
+    -- ============================================
+    
+    -- Setup notifications (Sekarang self.Window sudah ada!)
+    self.Notifications:SetWindow(self.Window)
+    self.Bring.Notifications = self.Notifications
+    self.Farm.Notifications = self.Notifications
+    
+    -- Create logo
+    local logoGui, logoButton = self:CreateLogo()
     
     -- Logo click handler
     self.GuiVisible = true
@@ -189,9 +197,16 @@ function UI:Init(deps)
     self:BuildCommunityTab(CommunityTab)
     
     self.Window:Open()
+    print("UI initialized successfully!")
     
     return self
 end
+
+-- ============================================
+-- SELURUH FUNGSI BuildInfoTab, BuildVisualsTab, 
+-- BuildPlayerTab, BuildCombatTab, BuildExploitsTab,
+-- BuildMiscTab, BuildCommunityTab TETAP SAMA
+-- ============================================
 
 function UI:BuildInfoTab(tab)
     local config = self.Config
@@ -210,10 +225,8 @@ end
 function UI:BuildVisualsTab(tab)
     local config = self.Config
     local esp = self.ESP
-    local utils = self.Utils
     local options = config:GetOptions()
     local crateOptions = config:GetCrateOptions()
-    local espDefs = config:GetESPDefinitions()
     
     local espSettingsSection = tab:Section({ Title = "ESP Settings" })
     
@@ -266,7 +279,6 @@ function UI:BuildPlayerTab(tab)
     local config = self.Config
     local options = config:GetOptions()
     local toggles = config:GetToggles()
-    local utils = self.Utils
     
     local movementSection = tab:Section({ Title = "Movement" })
     
@@ -345,7 +357,6 @@ function UI:BuildExploitsTab(tab)
     local options = config:GetOptions()
     local toggles = config:GetToggles()
     local bring = self.Bring
-    local network = self.Network
     
     local autoPickupSection = tab:Section({ Title = "Auto Pickup Item" })
     autoPickupSection:Toggle({ Title = "Auto Pickup", Default = false, Callback = function(v) 
