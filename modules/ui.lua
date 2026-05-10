@@ -586,14 +586,14 @@ function UI:BuildVisualsTab(tab)
     
     -- Per Kategori Item ESP
     local itemCategories = {
-        { key = "Gun", text = "🔫 Gun ESP" },
-        { key = "Melee", text = "⚔️ Melee ESP" },
-        { key = "Medical", text = "💊 Medical ESP" },
-        { key = "Armor", text = "🛡️ Armor ESP" },
-        { key = "Food", text = "🍔 Food ESP" },
-        { key = "Resource", text = "📦 Resources ESP" },
-        { key = "Fuel", text = "⛽ Fuel ESP" },
-        { key = "Ability", text = "✨ Abilities ESP" },
+        { key = "Gun", text = "Gun ESP" },
+        { key = "Melee", text = "Melee ESP" },
+        { key = "Medical", text = "Medical ESP" },
+        { key = "Armor", text = "Armor ESP" },
+        { key = "Food", text = "Food ESP" },
+        { key = "Resource", text = "Resources ESP" },
+        { key = "Fuel", text = "Fuel ESP" },
+        { key = "Ability", text = "Abilities ESP" },
     }
     
     for _, cat in ipairs(itemCategories) do
