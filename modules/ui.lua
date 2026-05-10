@@ -445,7 +445,7 @@ function UI:BuildExploitsTab(tab)
     
     -- Auto Destroy (FIXED - Sekarang memanggil farm.StartAutoDestroy)
     local autoDestroySection = tab:Section({ Title = "Auto Destroy Structure" })
-    autoDestroySection:Toggle({ Title = "Auto Destroy (Barrel & Scrap Pile)", Default = false, Callback = function(v) 
+    autoDestroySection:Toggle({ Title = "Auto Destroy", Default = false, Callback = function(v) 
         toggles.AutoDestroyStructure = v
         if v then 
             if farm and farm.StartAutoDestroy then 
