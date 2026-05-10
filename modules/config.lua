@@ -1,5 +1,5 @@
 -- =======================================================
--- PINATHUB - CONFIGURATION MODULE (FIXED)
+-- PINATHUB - CONFIGURATION MODULE (DENGAN GLOBAL BRIDGE)
 -- =======================================================
 
 local Config = {}
@@ -178,7 +178,7 @@ Config.ESPDefinitions = {
     },
 }
 
--- Supported maps for info tab
+-- Supported maps
 Config.SupportedMaps = {
     { name = "Survive The Apocalypse" },
     { name = "Blade Ball" },
@@ -208,7 +208,7 @@ Config.CrateOptions = {
 }
 
 -- ============================================
--- CONFIG METHODS (direct access)
+-- GETTER METHODS
 -- ============================================
 
 function Config:GetOptions()
@@ -248,12 +248,25 @@ function Config:GetCrateOptions()
 end
 
 -- ============================================
--- INIT FUNCTION (called by loader)
+-- INIT + GLOBAL BRIDGE (BIAR CODE LAMA TETAP JALAN)
 -- ============================================
+
 function Config:Init(modules)
-    print("Config module initialized")
+    -- Buat global bridge biar script lama tetap jalan
+    _G.Options = Config.Options
+    _G.Toggles = Config.Toggles
+    _G.Config = Config
+    
+    -- Juga kasih module reference
+    _G.Modules = modules or {}
+    _G.Modules.Config = Config
+    
+    print("Config module initialized with global bridge")
+    print("  → _G.Options available")
+    print("  → _G.Toggles available")
+    print("  → _G.Config available")
+    
     return self
 end
 
--- Return self directly (not a factory)
 return Config
