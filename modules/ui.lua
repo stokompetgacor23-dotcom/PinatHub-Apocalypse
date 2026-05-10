@@ -1,5 +1,5 @@
 -- =======================================================
--- PINATHUB - UI MODULE (FIXED - ESP BERFUNGSI)
+-- PINATHUB - UI MODULE (FIXED - SEMUA ESP BERFUNGSI)
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -250,7 +250,7 @@ function UI:BuildInfoTab(tab)
 end
 
 -- ============================================
--- VISUALS TAB (FIXED - ESP Mob dan Item ESP berfungsi)
+-- VISUALS TAB (FIXED - SEMUA ESP BERFUNGSI)
 -- ============================================
 function UI:BuildVisualsTab(tab)
     local config = self.Config
@@ -261,33 +261,37 @@ function UI:BuildVisualsTab(tab)
     local options = config:GetOptions()
     local crateOptions = config:GetCrateOptions()
     
-    -- ========== ESP SETTINGS SECTION ==========
-    local espSettingsSection = tab:Section({ Title = "ESP Settings" })
+    -- ========== ESP GLOBAL SETTINGS SECTION ==========
+    local globalSection = tab:Section({ Title = "Global ESP Settings" })
     
-    espSettingsSection:Toggle({ 
-        Title = "Show Names", 
+    globalSection:Toggle({ 
+        Title = "Show Names (All)", 
         Default = false, 
         Callback = function(value)
             if esp then
-                -- Update Mob ESP name visibility
+                -- Mob ESP
                 esp.MobOptions.Name = value
                 esp:RefreshMobESP()
-                -- Update Player ESP name visibility  
+                -- Player ESP  
                 esp.PlayerESPVars.Name = value
                 esp:RefreshPlayerESP()
-                -- Update Structure ESP name visibility
+                -- Structure ESP
                 esp.StructureESPVars.Name = value
                 esp:RefreshStructureESP()
-                -- Update Crate ESP name visibility
+                -- Crate ESP
                 if crateOptions then crateOptions.Name = value end
                 esp:RefreshCrateESP()
-                print("[UI] Show Names:", value)
+                -- All Item ESP Categories
+                if esp.SetAllItemNames then
+                    esp:SetAllItemNames(value)
+                end
+                print("[UI] Show Names (All):", value)
             end
         end 
     })
     
-    espSettingsSection:Toggle({ 
-        Title = "Show Distance", 
+    globalSection:Toggle({ 
+        Title = "Show Distance (All)", 
         Default = false, 
         Callback = function(value)
             if esp then
@@ -299,7 +303,10 @@ function UI:BuildVisualsTab(tab)
                 esp:RefreshStructureESP()
                 if crateOptions then crateOptions.Distance = value end
                 esp:RefreshCrateESP()
-                print("[UI] Show Distance:", value)
+                if esp.SetAllItemDistances then
+                    esp:SetAllItemDistances(value)
+                end
+                print("[UI] Show Distance (All):", value)
             end
         end 
     })
@@ -334,6 +341,30 @@ function UI:BuildVisualsTab(tab)
         end 
     })
     
+    mobSection:Toggle({ 
+        Title = "Mob Names", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                esp.MobOptions.Name = value
+                esp:RefreshMobESP()
+                print("[UI] Mob Names:", value)
+            end
+        end 
+    })
+    
+    mobSection:Toggle({ 
+        Title = "Mob Distance", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                esp.MobOptions.Distance = value
+                esp:RefreshMobESP()
+                print("[UI] Mob Distance:", value)
+            end
+        end 
+    })
+    
     -- ========== PLAYER ESP SECTION ==========
     local playerSection = tab:Section({ Title = "Player ESP" })
     
@@ -357,6 +388,30 @@ function UI:BuildVisualsTab(tab)
                 esp.PlayerESPVars.Chams = value
                 esp:RefreshPlayerESP()
                 print("[UI] Player Chams:", value)
+            end
+        end 
+    })
+    
+    playerSection:Toggle({ 
+        Title = "Player Names", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                esp.PlayerESPVars.Name = value
+                esp:RefreshPlayerESP()
+                print("[UI] Player Names:", value)
+            end
+        end 
+    })
+    
+    playerSection:Toggle({ 
+        Title = "Player Distance", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                esp.PlayerESPVars.Distance = value
+                esp:RefreshPlayerESP()
+                print("[UI] Player Distance:", value)
             end
         end 
     })
@@ -400,6 +455,30 @@ function UI:BuildVisualsTab(tab)
         end 
     })
     
+    structureSection:Toggle({ 
+        Title = "Structure Names", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                esp.StructureESPVars.Name = value
+                esp:RefreshStructureESP()
+                print("[UI] Structure Names:", value)
+            end
+        end 
+    })
+    
+    structureSection:Toggle({ 
+        Title = "Structure Distance", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                esp.StructureESPVars.Distance = value
+                esp:RefreshStructureESP()
+                print("[UI] Structure Distance:", value)
+            end
+        end 
+    })
+    
     -- ========== CRATES ESP SECTION ==========
     local cratesSection = tab:Section({ Title = "Crates ESP" })
     
@@ -431,39 +510,135 @@ function UI:BuildVisualsTab(tab)
         end 
     })
     
-    -- ========== ITEM ESP SECTION ==========
-    local itemSection = tab:Section({ Title = "Item ESP" })
+    cratesSection:Toggle({ 
+        Title = "Crates Names", 
+        Default = false, 
+        Callback = function(value)
+            if crateOptions then 
+                crateOptions.Name = value 
+            end
+            if esp and esp.RefreshCrateESP then 
+                esp:RefreshCrateESP() 
+            end
+            print("[UI] Crates Names:", value)
+        end 
+    })
     
+    cratesSection:Toggle({ 
+        Title = "Crates Distance", 
+        Default = false, 
+        Callback = function(value)
+            if crateOptions then 
+                crateOptions.Distance = value 
+            end
+            if esp and esp.RefreshCrateESP then 
+                esp:RefreshCrateESP() 
+            end
+            print("[UI] Crates Distance:", value)
+        end 
+    })
+    
+    -- ========== ITEM ESP SECTION (LENGKAP DENGAN NAME & DISTANCE) ==========
+    local itemSection = tab:Section({ Title = "Item ESP (Dropped Items)" })
+    
+    -- Header untuk Item ESP
+    itemSection:Paragraph({ 
+        Title = "Pengaturan Item ESP", 
+        Desc = "Aktifkan ESP untuk item yang jatuh di lantai" 
+    })
+    itemSection:Divider()
+    
+    -- Global Item Toggles
     itemSection:Toggle({ 
-        Title = "Chams (All Categories)", 
+        Title = "All Items Chams", 
         Default = false, 
         Callback = function(value)
             if esp and esp.SetAllItemChams then
                 esp:SetAllItemChams(value)
-                print("[UI] All Item Chams:", value)
+                print("[UI] All Items Chams:", value)
             end
         end 
     })
     
+    itemSection:Toggle({ 
+        Title = "All Items Names", 
+        Default = false, 
+        Callback = function(value)
+            if esp and esp.SetAllItemNames then
+                esp:SetAllItemNames(value)
+                print("[UI] All Items Names:", value)
+            end
+        end 
+    })
+    
+    itemSection:Toggle({ 
+        Title = "All Items Distance", 
+        Default = false, 
+        Callback = function(value)
+            if esp and esp.SetAllItemDistances then
+                esp:SetAllItemDistances(value)
+                print("[UI] All Items Distance:", value)
+            end
+        end 
+    })
+    
+    itemSection:Divider()
+    
+    -- Per Kategori Item ESP
     local itemCategories = {
-        { key = "Gun", text = "Gun ESP" },
-        { key = "Melee", text = "Melee ESP" },
-        { key = "Medical", text = "Medical ESP" },
-        { key = "Armor", text = "Armor ESP" },
-        { key = "Food", text = "Food ESP" },
-        { key = "Resource", text = "Resources ESP" },
-        { key = "Fuel", text = "Fuel ESP" },
-        { key = "Ability", text = "Abilities ESP" },
+        { key = "Gun", text = "🔫 Gun ESP" },
+        { key = "Melee", text = "⚔️ Melee ESP" },
+        { key = "Medical", text = "💊 Medical ESP" },
+        { key = "Armor", text = "🛡️ Armor ESP" },
+        { key = "Food", text = "🍔 Food ESP" },
+        { key = "Resource", text = "📦 Resources ESP" },
+        { key = "Fuel", text = "⛽ Fuel ESP" },
+        { key = "Ability", text = "✨ Abilities ESP" },
     }
     
     for _, cat in ipairs(itemCategories) do
-        itemSection:Toggle({ 
-            Title = cat.text, 
+        local catSection = tab:Section({ Title = cat.text })
+        
+        catSection:Toggle({ 
+            Title = cat.text .. " (Enable)", 
             Default = false, 
             Callback = function(value)
                 if esp and esp.SetItemCategoryESP then
                     esp:SetItemCategoryESP(cat.key, value)
-                    print("[UI] " .. cat.text .. ":", value)
+                    print("[UI] " .. cat.text .. " ESP:", value)
+                end
+            end 
+        })
+        
+        catSection:Toggle({ 
+            Title = cat.text .. " Chams", 
+            Default = false, 
+            Callback = function(value)
+                if esp and esp.SetItemCategoryChams then
+                    esp:SetItemCategoryChams(cat.key, value)
+                    print("[UI] " .. cat.text .. " Chams:", value)
+                end
+            end 
+        })
+        
+        catSection:Toggle({ 
+            Title = cat.text .. " Names", 
+            Default = false, 
+            Callback = function(value)
+                if esp and esp.SetItemCategoryName then
+                    esp:SetItemCategoryName(cat.key, value)
+                    print("[UI] " .. cat.text .. " Names:", value)
+                end
+            end 
+        })
+        
+        catSection:Toggle({ 
+            Title = cat.text .. " Distance", 
+            Default = false, 
+            Callback = function(value)
+                if esp and esp.SetItemCategoryDistance then
+                    esp:SetItemCategoryDistance(cat.key, value)
+                    print("[UI] " .. cat.text .. " Distance:", value)
                 end
             end 
         })
@@ -488,10 +663,7 @@ function UI:BuildVisualsTab(tab)
     task.spawn(function()
         task.wait(1)
         if esp then
-            esp:RefreshMobESP()
-            esp:RefreshPlayerESP()
-            esp:RefreshStructureESP()
-            esp:RefreshCrateESP()
+            esp:RefreshAll()
             print("[UI] Initial ESP refresh completed")
         end
     end)
