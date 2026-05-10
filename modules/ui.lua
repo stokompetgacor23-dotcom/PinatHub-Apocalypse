@@ -1,5 +1,5 @@
 -- =======================================================
--- PINATHUB - UI MODULE (COMPLETE WITH PLAYER MODULE)
+-- PINATHUB - UI MODULE (COMPLETE WITH ALL MODULES)
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -139,7 +139,8 @@ function UI:Init(modules)
     self.Teleport = modules.teleport or modules.Teleport
     self.Network = modules.network or modules.Network
     self.Notifications = modules.notifications or modules.Notifications
-    self.Player = modules.player or modules.Player  -- Tambahkan Player module
+    self.Player = modules.player or modules.Player
+    self.AutoPickup = modules.autoPickup or modules.AutoPickup  -- <-- TAMBAHKAN AUTO PICKUP
     
     -- Validate Config module
     if not self.Config then
@@ -210,16 +211,16 @@ function UI:Init(modules)
     -- ============================================
     self:BuildInfoTab(InfoTab)
     self:BuildVisualsTab(VisualsTab)
-    self:BuildPlayerTab(PlayerTab)      -- Updated with Player module
+    self:BuildPlayerTab(PlayerTab)
     self:BuildCombatTab(CombatTab)
-    self:BuildExploitsTab(ExploitsTab)
+    self:BuildExploitsTab(ExploitsTab)  -- <-- UPDATED dengan AutoPickup
     self:BuildMiscTab(MiscTab)
     self:BuildCommunityTab(CommunityTab)
     
     -- Open window
     self.Window:Open()
     print("UI initialized successfully!")
-    print("Player features available in Player Tab!")
+    print("Auto Pickup feature available in Exploits Tab!")
     
     return self
 end
@@ -411,7 +412,7 @@ end
 -- ============================================
 function UI:BuildPlayerTab(tab)
     local config = self.Config
-    local playerModule = self.Player  -- Ambil Player module
+    local playerModule = self.Player
     
     if not config then return end
     
@@ -596,7 +597,7 @@ function UI:BuildCombatTab(tab)
 end
 
 -- ============================================
--- EXPLOITS TAB
+-- EXPLOITS TAB (UPDATED - Dengan AutoPickup Module)
 -- ============================================
 function UI:BuildExploitsTab(tab)
     local config = self.Config
@@ -606,70 +607,155 @@ function UI:BuildExploitsTab(tab)
     local toggles = config:GetToggles()
     local bring = self.Bring
     local farm = self.Farm
+    local autoPickup = self.AutoPickup  -- <-- Ambil AutoPickup module
     local utils = self.Utils
     local network = self.Network
     local notifications = self.Notifications
     
+    -- ========== AUTO PICKUP SECTION (UPDATED) ==========
     local autoPickupSection = tab:Section({ Title = "Auto Pickup Item" })
-    autoPickupSection:Toggle({ Title = "Auto Pickup", Default = false, Callback = function(v) 
-        toggles.AutoPickup = v
-        if notifications then notifications:Show("Auto Pickup", v and "Enabled" or "Disabled", 2) end
-    end })
-    autoPickupSection:Toggle({ Title = "Pickup All Items", Default = true, Callback = function(v) options.AutoPickupAll = v end })
-    autoPickupSection:Slider({ Title = "Pickup Range", Description = "Distance to pickup items (12-200)", Value = { Min = 12, Default = 50, Max = 200 }, Callback = function(v) options.AutoPickupRange = v end })
-    autoPickupSection:Slider({ Title = "Pickup Delay", Description = "Delay between pickups (0.05-1)", Value = { Min = 0.05, Default = 0.1, Max = 1, Decimal = true }, Callback = function(v) options.AutoPickupDelay = v end })
     
+    autoPickupSection:Toggle({ 
+        Title = "Auto Pickup", 
+        Default = false, 
+        Callback = function(v) 
+            toggles.AutoPickup = v
+            if v then 
+                if autoPickup and autoPickup.Start then 
+                    autoPickup:Start(options, notifications)
+                elseif notifications then 
+                    notifications:Show("Error", "AutoPickup module not loaded!", 2)
+                end
+            else 
+                if autoPickup and autoPickup.Stop then 
+                    autoPickup:Stop(notifications)
+                end
+            end
+        end 
+    })
+    
+    autoPickupSection:Toggle({ 
+        Title = "Pickup All Items", 
+        Default = true, 
+        Callback = function(v) 
+            options.AutoPickupAll = v 
+        end 
+    })
+    
+    autoPickupSection:Slider({ 
+        Title = "Pickup Range", 
+        Description = "Distance to pickup items (12-200)", 
+        Value = { Min = 12, Default = 50, Max = 200 }, 
+        Callback = function(v) 
+            options.AutoPickupRange = v 
+        end 
+    })
+    
+    autoPickupSection:Slider({ 
+        Title = "Pickup Delay", 
+        Description = "Delay between pickups (0.05-1)", 
+        Value = { Min = 0.05, Default = 0.1, Max = 1, Decimal = true }, 
+        Callback = function(v) 
+            options.AutoPickupDelay = v 
+        end 
+    })
+    
+    -- ========== BRING PICKUP SECTION ==========
     local bringSection = tab:Section({ Title = "Bring Pickup Item" })
-    bringSection:Toggle({ Title = "Bring Pickup Item", Default = false, Callback = function(v) 
-        toggles.BringPickupItem = v
-        if v then 
-            if bring and bring.Start then bring:Start(config, network, utils) end
-            if notifications then notifications:Show("Bring Pickup Item", "Enabled!", 2) end
-        else 
-            if bring and bring.Stop then bring:Stop() end
-            if notifications then notifications:Show("Bring Pickup Item", "Disabled", 2) end
-        end
-    end })
-    bringSection:Toggle({ Title = "All Pickup Items", Default = false, Callback = function(v) toggles.BringAllPickup = v end })
-    bringSection:Dropdown({ Title = "Sort Order", Values = { "Nearest First", "Farthest First", "Alphabetical", "Reverse Alphabetical" }, Default = 1, Callback = function(v) options.BringPickupSortOrder = v end })
     
-    -- Auto Destroy Structure
+    bringSection:Toggle({ 
+        Title = "Bring Pickup Item", 
+        Default = false, 
+        Callback = function(v) 
+            toggles.BringPickupItem = v
+            if v then 
+                if bring and bring.Start then 
+                    bring:Start(config, network, utils) 
+                end
+                if notifications then 
+                    notifications:Show("Bring Pickup Item", "Enabled!", 2) 
+                end
+            else 
+                if bring and bring.Stop then 
+                    bring:Stop() 
+                end
+                if notifications then 
+                    notifications:Show("Bring Pickup Item", "Disabled", 2) 
+                end
+            end
+        end 
+    })
+    
+    bringSection:Toggle({ 
+        Title = "All Pickup Items", 
+        Default = false, 
+        Callback = function(v) 
+            toggles.BringAllPickup = v 
+        end 
+    })
+    
+    bringSection:Dropdown({ 
+        Title = "Sort Order", 
+        Values = { "Nearest First", "Farthest First", "Alphabetical", "Reverse Alphabetical" }, 
+        Default = 1, 
+        Callback = function(v) 
+            options.BringPickupSortOrder = v 
+        end 
+    })
+    
+    -- ========== AUTO DESTROY STRUCTURE ==========
     local autoDestroySection = tab:Section({ Title = "Auto Destroy Structure" })
-    autoDestroySection:Toggle({ Title = "Auto Destroy (Barrel & Scrap Pile)", Default = false, Callback = function(v) 
-        toggles.AutoDestroyStructure = v
-        if v then 
-            if farm and farm.StartAutoDestroy then 
-                farm:StartAutoDestroy(notifications)
-            elseif notifications then 
-                notifications:Show("Error", "Farm module not loaded!", 2)
-            end
-        else 
-            if farm and farm.StopAutoDestroy then 
-                farm:StopAutoDestroy(notifications)
-            end
-        end
-    end })
     
-    -- Auto Hunt Fuel
+    autoDestroySection:Toggle({ 
+        Title = "Auto Destroy (Barrel & Scrap Pile)", 
+        Default = false, 
+        Callback = function(v) 
+            toggles.AutoDestroyStructure = v
+            if v then 
+                if farm and farm.StartAutoDestroy then 
+                    farm:StartAutoDestroy(notifications)
+                elseif notifications then 
+                    notifications:Show("Error", "Farm module not loaded!", 2)
+                end
+            else 
+                if farm and farm.StopAutoDestroy then 
+                    farm:StopAutoDestroy(notifications)
+                end
+            end
+        end 
+    })
+    
+    -- ========== AUTO HUNT FUEL ==========
     local autoHuntFuelSection = tab:Section({ Title = "Auto Hunt Fuel" })
-    autoHuntFuelSection:Toggle({ Title = "Auto Hunt Fuel", Default = false, Callback = function(v) 
-        toggles.AutoHuntFuel = v
-        if v then 
-            if farm and farm.StartAutoHuntFuel then 
-                farm:StartAutoHuntFuel(notifications, options)
-            elseif notifications then 
-                notifications:Show("Error", "Farm module not loaded!", 2)
+    
+    autoHuntFuelSection:Toggle({ 
+        Title = "Auto Hunt Fuel", 
+        Default = false, 
+        Callback = function(v) 
+            toggles.AutoHuntFuel = v
+            if v then 
+                if farm and farm.StartAutoHuntFuel then 
+                    farm:StartAutoHuntFuel(notifications, options)
+                elseif notifications then 
+                    notifications:Show("Error", "Farm module not loaded!", 2)
+                end
+            else 
+                if farm and farm.StopAutoHuntFuel then 
+                    farm:StopAutoHuntFuel(notifications)
+                end
             end
-        else 
-            if farm and farm.StopAutoHuntFuel then 
-                farm:StopAutoHuntFuel(notifications)
-            end
-        end
-    end })
-    autoHuntFuelSection:Slider({ Title = "Fuel Hunt Range", Description = "Detection range for Fuel (100-5000 studs)", Value = { Min = 100, Default = 500, Max = 5000 }, Callback = function(v) 
-        options.FuelHuntRange = v
-        if farm then farm.FuelHuntRange = v end
-    end })
+        end 
+    })
+    
+    autoHuntFuelSection:Slider({ 
+        Title = "Fuel Hunt Range", 
+        Description = "Detection range for Fuel (100-5000 studs)", 
+        Value = { Min = 100, Default = 500, Max = 5000 }, 
+        Callback = function(v) 
+            options.FuelHuntRange = v
+            if farm then farm.FuelHuntRange = v end
+        end 
+    })
 end
 
 -- ============================================
@@ -677,7 +763,7 @@ end
 -- ============================================
 function UI:BuildMiscTab(tab)
     local config = self.Config
-    local playerModule = self.Player  -- Untuk utilities
+    local playerModule = self.Player
     
     if not config then return end
     
