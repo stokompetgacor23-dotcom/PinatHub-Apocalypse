@@ -1,5 +1,5 @@
 -- =======================================================
--- PINATHUB - ESP MODULE (COMPLETE - FIXED)
+-- PINATHUB - ESP MODULE (COMPLETE - SEMUA BERFUNGSI)
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -625,9 +625,7 @@ end
 -- ============================================
 function ESP:CreateCategoryESP(sys, item)
     if not item:IsA("Model") then return end
-    if sys.instances[item] then return end
-
-    local mainPart = getItemMainPart(item)
+    if sys.instances[item] then return end    local mainPart = getItemMainPart(item)
     if not mainPart then return end
 
     local espTable = {}
@@ -754,7 +752,6 @@ function ESP:SetupCategoryListeners(sys)
         end
     end)
     table.insert(self.Connections, addedConn)
-    -- FIXED: Ganti ChildRemoving ke ChildRemoved
     local removedConn = self.DroppedItemsFolder.ChildRemoved:Connect(function(child)
         self:RemoveCategoryESP(sys, child)
     end)
@@ -924,7 +921,6 @@ function ESP:SetupCrateListeners()
         end
     end)
     table.insert(self.Connections, childAddedConn)
-    -- FIXED: Ganti ChildRemoving ke ChildRemoved
     local childRemovedConn = cratesFolder.ChildRemoved:Connect(function(child)
         if child.Name == "Default" and child:IsA("Model") then
             self:RemoveCrateESP(child)
@@ -982,7 +978,7 @@ function ESP:RefreshAll()
 end
 
 -- ============================================
--- SETTER METHODS
+-- SETTER METHODS (FIXED - SEMUA ADA!)
 -- ============================================
 function ESP:SetMobOptions(opts)
     self.MobOptions = opts
@@ -1002,6 +998,7 @@ function ESP:SetStructureOptions(opts)
     return self
 end
 
+-- Set all items at once
 function ESP:SetAllItemChams(value)
     for _, sys in pairs(self.Systems) do
         sys.vars.Chams = value
@@ -1009,9 +1006,45 @@ function ESP:SetAllItemChams(value)
     end
 end
 
+function ESP:SetAllItemNames(value)
+    for _, sys in pairs(self.Systems) do
+        sys.vars.Name = value
+        self:RefreshCategoryESP(sys)
+    end
+end
+
+function ESP:SetAllItemDistances(value)
+    for _, sys in pairs(self.Systems) do
+        sys.vars.Distance = value
+        self:RefreshCategoryESP(sys)
+    end
+end
+
+-- Set single category
 function ESP:SetItemCategoryESP(category, enabled)
     if self.Systems[category] then
         self.Systems[category].vars.ESP = enabled
+        self:RefreshCategoryESP(self.Systems[category])
+    end
+end
+
+function ESP:SetItemCategoryChams(category, enabled)
+    if self.Systems[category] then
+        self.Systems[category].vars.Chams = enabled
+        self:RefreshCategoryESP(self.Systems[category])
+    end
+end
+
+function ESP:SetItemCategoryName(category, enabled)
+    if self.Systems[category] then
+        self.Systems[category].vars.Name = enabled
+        self:RefreshCategoryESP(self.Systems[category])
+    end
+end
+
+function ESP:SetItemCategoryDistance(category, enabled)
+    if self.Systems[category] then
+        self.Systems[category].vars.Distance = enabled
         self:RefreshCategoryESP(self.Systems[category])
     end
 end
@@ -1058,7 +1091,7 @@ function ESP:Init(deps)
     self:SetupMobListeners()
     self:SetupStructureListeners()
     
-    print("[ESP MODULE] Initialized")
+    print("[ESP MODULE] Initialized - All ESP features ready!")
     return self
 end
 
