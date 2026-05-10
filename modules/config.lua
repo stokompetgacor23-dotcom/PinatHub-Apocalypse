@@ -1,5 +1,5 @@
 -- =======================================================
--- PINATHUB - CONFIGURATION MODULE
+-- PINATHUB - CONFIGURATION MODULE (FIXED)
 -- =======================================================
 
 local Config = {}
@@ -207,47 +207,53 @@ Config.CrateOptions = {
     OutlineColor = Color3.fromRGB(255, 255, 255)
 }
 
--- Helper to create mutable config copy
-function Config.new()
-    local config = {}
-    
-    function config:GetOptions()
-        return Config.Options
-    end
-    
-    function config:GetToggles()
-        return Config.Toggles
-    end
-    
-    function config:GetWeaponSwingSpeeds()
-        return Config.WeaponSwingSpeeds
-    end
-    
-    function config:GetMobNames()
-        return Config.MobNames
-    end
-    
-    function config:GetStructureNames()
-        return Config.StructureNames
-    end
-    
-    function config:GetPickupItemSet()
-        return Config.PickupItemSet
-    end
-    
-    function config:GetESPDefinitions()
-        return Config.ESPDefinitions
-    end
-    
-    function config:GetSupportedMaps()
-        return Config.SupportedMaps
-    end
-    
-    function config:GetCrateOptions()
-        return Config.CrateOptions
-    end
-    
-    return config
+-- ============================================
+-- CONFIG METHODS (direct access)
+-- ============================================
+
+function Config:GetOptions()
+    return Config.Options
 end
 
+function Config:GetToggles()
+    return Config.Toggles
+end
+
+function Config:GetWeaponSwingSpeeds()
+    return Config.WeaponSwingSpeeds
+end
+
+function Config:GetMobNames()
+    return Config.MobNames
+end
+
+function Config:GetStructureNames()
+    return Config.StructureNames
+end
+
+function Config:GetPickupItemSet()
+    return Config.PickupItemSet
+end
+
+function Config:GetESPDefinitions()
+    return Config.ESPDefinitions
+end
+
+function Config:GetSupportedMaps()
+    return Config.SupportedMaps
+end
+
+function Config:GetCrateOptions()
+    return Config.CrateOptions
+end
+
+-- ============================================
+-- INIT FUNCTION (called by loader)
+-- ============================================
+function Config:Init(modules)
+    print("Config module initialized")
+    return self
+end
+
+-- Return self directly (not a factory)
 return Config
