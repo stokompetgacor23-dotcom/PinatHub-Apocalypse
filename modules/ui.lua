@@ -1,5 +1,5 @@
 -- =======================================================
--- PINATHUB - UI MODULE (FULLY FIXED)
+-- PINATHUB - UI MODULE (FULLY FIXEDD)
 -- =======================================================
 
 local Players = game:GetService("Players")
