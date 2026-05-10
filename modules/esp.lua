@@ -1,5 +1,5 @@
 -- =======================================================
--- PINATHUB - ESP MODULE (COMPLETE WITH ITEM ESP)
+-- PINATHUB - ESP MODULE (COMPLETE WITH ITEM NAMES)
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -14,7 +14,7 @@ ESP.Instances = {
     player = {},
     structure = {},
     crate = {},
-    item = {}  -- Added for item ESP
+    item = {}
 }
 
 ESP.Options = {
@@ -23,13 +23,18 @@ ESP.Options = {
     structure = { ESP = false, Chams = false, Name = false, Distance = false }
 }
 
+-- Item ESP state
+ESP.ItemOptions = {}
+ESP.ItemInstances = {}
+
 -- ============================================
--- ITEM ESP DEFINITIONS (SAMA SEPERTI SINGLE FILE)
+-- ITEM ESP DEFINITIONS (Sama seperti single file)
 -- ============================================
-ESP.ItemCategories = {
+local itemDefinitions = {
     Gun = {
         displayName = "Gun ESP",
-        color = Color3.fromRGB(255, 30, 30),
+        fillColor = Color3.fromRGB(255, 30, 30),
+        outlineColor = Color3.fromRGB(255, 255, 255),
         textColor = Color3.fromRGB(255, 120, 120),
         items = {
             "AA-12", "AK-47", "Assault Rifle", "Desert Eagle", "Double Barrel",
@@ -39,7 +44,8 @@ ESP.ItemCategories = {
     },
     Melee = {
         displayName = "Melee ESP",
-        color = Color3.fromRGB(255, 140, 0),
+        fillColor = Color3.fromRGB(255, 140, 0),
+        outlineColor = Color3.fromRGB(255, 255, 255),
         textColor = Color3.fromRGB(255, 200, 100),
         items = {
             "Bat", "Chainsaw", "Crowbar", "Fire Axe", "Hatchet", "Katana", "Knife",
@@ -48,7 +54,8 @@ ESP.ItemCategories = {
     },
     Medical = {
         displayName = "Medical ESP",
-        color = Color3.fromRGB(0, 255, 80),
+        fillColor = Color3.fromRGB(0, 255, 80),
+        outlineColor = Color3.fromRGB(255, 255, 255),
         textColor = Color3.fromRGB(150, 255, 150),
         items = {
             "Bandage", "Compound H", "Compound I", "Compound R", "Compound S", "Medkit"
@@ -56,7 +63,8 @@ ESP.ItemCategories = {
     },
     Armor = {
         displayName = "Armor ESP",
-        color = Color3.fromRGB(0, 100, 255),
+        fillColor = Color3.fromRGB(0, 100, 255),
+        outlineColor = Color3.fromRGB(255, 255, 255),
         textColor = Color3.fromRGB(160, 200, 255),
         items = {
             "Power Armor", "Light Armor", "Medium Armor", "Heavy Armor"
@@ -64,7 +72,8 @@ ESP.ItemCategories = {
     },
     Food = {
         displayName = "Food ESP",
-        color = Color3.fromRGB(190, 255, 0),
+        fillColor = Color3.fromRGB(190, 255, 0),
+        outlineColor = Color3.fromRGB(255, 255, 255),
         textColor = Color3.fromRGB(210, 255, 150),
         items = {
             "Chips", "Carrot", "Bloxiade", "Beans", "MRE", "Bloxy Cola"
@@ -72,7 +81,8 @@ ESP.ItemCategories = {
     },
     Resource = {
         displayName = "Resources ESP",
-        color = Color3.fromRGB(0, 220, 255),
+        fillColor = Color3.fromRGB(0, 220, 255),
+        outlineColor = Color3.fromRGB(255, 255, 255),
         textColor = Color3.fromRGB(180, 240, 255),
         items = {
             "AC", "Battery", "Battery Pack", "Bucket", "Dumbell", "Exhaust Pipe",
@@ -82,13 +92,15 @@ ESP.ItemCategories = {
     },
     Fuel = {
         displayName = "Fuel ESP",
-        color = Color3.fromRGB(255, 220, 0),
+        fillColor = Color3.fromRGB(255, 220, 0),
+        outlineColor = Color3.fromRGB(255, 255, 255),
         textColor = Color3.fromRGB(255, 240, 160),
         items = { "Nuclear Fuel", "Refined Fuel", "Fuel" }
     },
     Ability = {
         displayName = "Abilities ESP",
-        color = Color3.fromRGB(180, 0, 255),
+        fillColor = Color3.fromRGB(180, 0, 255),
+        outlineColor = Color3.fromRGB(255, 255, 255),
         textColor = Color3.fromRGB(220, 150, 255),
         items = {
             "Airstrike", "Attack Order", "Call of the Dead",
@@ -98,442 +110,40 @@ ESP.ItemCategories = {
     }
 }
 
--- Item ESP state
-ESP.ItemOptions = {}
-ESP.ItemInstances = {}
-
-for category, data in pairs(ESP.ItemCategories) do
-    ESP.ItemOptions[category] = { ESP = false, Chams = false, Name = false, Distance = false }
+-- Initialize item options
+for category, def in pairs(itemDefinitions) do
+    ESP.ItemOptions[category] = { ESP = false, Chams = false, Name = true, Distance = true }
     ESP.ItemInstances[category] = {}
     
-    -- Create item lookup table
-    local itemLookup = {}
-    for _, itemName in ipairs(data.items) do
-        itemLookup[itemName] = category
+    -- Create item lookup
+    def.itemLookup = {}
+    for _, itemName in ipairs(def.items) do
+        def.itemLookup[itemName] = true
     end
 end
 
 -- ============================================
--- MOB ESP FUNCTIONS
+-- UTILITY FUNCTIONS
 -- ============================================
-function ESP:RemoveMobESP(char)
-    local esp = self.Instances.mob[char]
-    if esp then
-        if esp.Highlight then esp.Highlight:Destroy() end
-        if esp.Billboard then esp.Billboard:Destroy() end
-        if esp.DistanceConnection then esp.DistanceConnection:Disconnect() end
-        self.Instances.mob[char] = nil
-    end
-end
-
-function ESP:CreateMobESP(char, mobNames, maxDistance)
-    if not char:IsA("Model") then return end
-    if self.Instances.mob[char] then return end
-
-    local root = self.Utils:GetPlayerRoot(char)
-    if not root then return end
-
-    local espTable = {}
-    local mobColors = {fill = Color3.fromRGB(220, 0, 0), outline = Color3.fromRGB(255, 185, 185)}
-    local opts = self.Options.mob
-
-    if opts.Chams then
-        local highlight = self.Utils:CreateHighlight(char, mobColors.fill, 0.3, mobColors.outline, 0.8)
-        espTable.Highlight = highlight
-    end
-
-    if opts.Name or opts.Distance then
-        local billboard = self.Utils:CreateBillboard(root, UDim2.new(0, 220, 0, 50), Vector3.new(0, 3, 0))
-        billboard.Parent = char
-
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 1, 0)
-        frame.BackgroundTransparency = 1
-        frame.Parent = billboard
-
-        local nameLabel = Instance.new("TextLabel")
-        nameLabel.Name = "NameLabel"
-        nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
-        nameLabel.Position = UDim2.new(0, 0, 0, 0)
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = char.Name
-        nameLabel.TextColor3 = mobColors.outline
-        nameLabel.TextStrokeTransparency = 0.2
-        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-        nameLabel.Font = Enum.Font.GothamBold
-        nameLabel.TextSize = 14
-        nameLabel.Visible = opts.Name
-        nameLabel.Parent = frame
-
-        local distLabel = Instance.new("TextLabel")
-        distLabel.Name = "DistLabel"
-        distLabel.Size = UDim2.new(1, 0, 0.5, 0)
-        distLabel.Position = UDim2.new(0, 0, 0.5, 0)
-        distLabel.BackgroundTransparency = 1
-        distLabel.Text = "0m"
-        distLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-        distLabel.TextStrokeTransparency = 0.2
-        distLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-        distLabel.Font = Enum.Font.GothamBold
-        distLabel.TextSize = 12
-        distLabel.Visible = opts.Distance
-        distLabel.Parent = frame
-
-        espTable.Billboard = billboard
-        espTable.NameLabel = nameLabel
-        espTable.DistLabel = distLabel
-        espTable.Root = root
-
-        local connection
-        connection = RunService.RenderStepped:Connect(function()
-            if not char or not char.Parent then
-                connection:Disconnect()
-                return
-            end
-            if nameLabel and nameLabel.Visible and nameLabel.Parent then
-                local hum = char:FindFirstChildOfClass("Humanoid")
-                if hum then
-                    nameLabel.Text = char.Name .. " [" .. math.floor(hum.Health) .. "/" .. math.floor(hum.MaxHealth) .. "]"
-                end
-            end
-            if distLabel and distLabel.Visible and distLabel.Parent then
-                local myChar = LocalPlayer.Character
-                local myRoot = self.Utils:GetPlayerRoot(myChar)
-                if myRoot then
-                    local dist = (myRoot.Position - root.Position).Magnitude
-                    local maxDist = maxDistance or 99999
-                    distLabel.Text = math.floor(dist) .. "m"
-                    distLabel.TextColor3 = self.Utils:GetDistanceColor(dist)
-                    local visible = dist <= maxDist
-                    if billboard.Enabled ~= visible then billboard.Enabled = visible end
-                    if espTable.Highlight then espTable.Highlight.Enabled = visible end
-                end
-            end
-        end)
-        espTable.DistanceConnection = connection
-        if self.Utils then self.Utils:AddConnection(connection) end
-    end
-
-    self.Instances.mob[char] = espTable
-end
-
-function ESP:RefreshMobESP(mobNames, maxDistance)
-    for char, _ in pairs(self.Instances.mob) do
-        self:RemoveMobESP(char)
-    end
-    if not self.Options.mob.ESP then return end
-    local folders = self.Utils:DiscoverFolders()
-    if not folders.charactersFolder then return end
-    for _, child in ipairs(folders.charactersFolder:GetChildren()) do
-        local found = false
-        for _, name in ipairs(mobNames) do
-            if child.Name == name then found = true break end
-        end
-        if found then
-            self:CreateMobESP(child, mobNames, maxDistance)
+local function getItemMainPart(item)
+    if item.PrimaryPart then return item.PrimaryPart end
+    for _, child in ipairs(item:GetChildren()) do
+        if child:IsA("BasePart") then
+            return child
         end
     end
+    return nil
+end
+
+local function getDistanceColor(dist)
+    if dist > 250 then return Color3.fromRGB(255, 80, 80)
+    elseif dist > 150 then return Color3.fromRGB(255, 180, 80)
+    elseif dist > 100 then return Color3.fromRGB(255, 255, 80)
+    else return Color3.fromRGB(220, 220, 220) end
 end
 
 -- ============================================
--- PLAYER ESP FUNCTIONS
--- ============================================
-function ESP:RemovePlayerESP(player)
-    local esp = self.Instances.player[player]
-    if esp then
-        if esp.Highlight then esp.Highlight:Destroy() end
-        if esp.Billboard then esp.Billboard:Destroy() end
-        if esp.DistanceConnection then esp.DistanceConnection:Disconnect() end
-        if esp.CharAddedConn then esp.CharAddedConn:Disconnect() end
-        self.Instances.player[player] = nil
-    end
-end
-
-function ESP:CreatePlayerESP(player, maxDistance)
-    if player == LocalPlayer then return end
-    if self.Instances.player[player] then return end
-
-    local char = player.Character
-    if not char then return end
-
-    local root = self.Utils:GetPlayerRoot(char)
-    if not root then return end
-
-    local espTable = {}
-    local opts = self.Options.player
-
-    if opts.Chams then
-        local highlight = self.Utils:CreateHighlight(char, Color3.fromRGB(0, 100, 255), 0.3, Color3.fromRGB(100, 180, 255), 0.8)
-        espTable.Highlight = highlight
-    end
-
-    if opts.Name or opts.Distance or opts.Health then
-        local billboard = self.Utils:CreateBillboard(root, UDim2.new(0, 220, 0, 70), Vector3.new(0, 3, 0))
-        billboard.Parent = char
-
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 1, 0)
-        frame.BackgroundTransparency = 1
-        frame.Parent = billboard
-
-        local nameLabel = Instance.new("TextLabel")
-        nameLabel.Name = "NameLabel"
-        nameLabel.Size = UDim2.new(1, 0, 0.3, 0)
-        nameLabel.Position = UDim2.new(0, 0, 0, 0)
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = player.DisplayName .. " (@" .. player.Name .. ")"
-        nameLabel.TextColor3 = Color3.fromRGB(150, 200, 255)
-        nameLabel.TextStrokeTransparency = 0.2
-        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-        nameLabel.Font = Enum.Font.GothamBold
-        nameLabel.TextSize = 13
-        nameLabel.Visible = opts.Name
-        nameLabel.Parent = frame
-
-        local toolLabel = Instance.new("TextLabel")
-        toolLabel.Name = "ToolLabel"
-        toolLabel.Size = UDim2.new(1, 0, 0.25, 0)
-        toolLabel.Position = UDim2.new(0, 0, 0.3, 0)
-        toolLabel.BackgroundTransparency = 1
-        toolLabel.Text = ""
-        toolLabel.TextColor3 = Color3.fromRGB(180, 180, 255)
-        toolLabel.TextStrokeTransparency = 0.2
-        toolLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-        toolLabel.Font = Enum.Font.Gotham
-        toolLabel.TextSize = 11
-        toolLabel.Visible = opts.Name
-        toolLabel.Parent = frame
-
-        local healthLabel = Instance.new("TextLabel")
-        healthLabel.Name = "HealthLabel"
-        healthLabel.Size = UDim2.new(1, 0, 0.2, 0)
-        healthLabel.Position = UDim2.new(0, 0, 0.55, 0)
-        healthLabel.BackgroundTransparency = 1
-        healthLabel.Text = "100 HP"
-        healthLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-        healthLabel.TextStrokeTransparency = 0.2
-        healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-        healthLabel.Font = Enum.Font.GothamBold
-        healthLabel.TextSize = 11
-        healthLabel.Visible = opts.Health
-        healthLabel.Parent = frame
-
-        local distLabel = Instance.new("TextLabel")
-        distLabel.Name = "DistLabel"
-        distLabel.Size = UDim2.new(1, 0, 0.2, 0)
-        distLabel.Position = UDim2.new(0, 0, 0.78, 0)
-        distLabel.BackgroundTransparency = 1
-        distLabel.Text = "0m"
-        distLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-        distLabel.TextStrokeTransparency = 0.2
-        distLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-        distLabel.Font = Enum.Font.GothamBold
-        distLabel.TextSize = 11
-        distLabel.Visible = opts.Distance
-        distLabel.Parent = frame
-
-        espTable.Billboard = billboard
-        espTable.NameLabel = nameLabel
-        espTable.ToolLabel = toolLabel
-        espTable.HealthLabel = healthLabel
-        espTable.DistLabel = distLabel
-
-        local connection
-        connection = RunService.RenderStepped:Connect(function()
-            if not player or not player.Parent then
-                connection:Disconnect()
-                return
-            end
-            local c = player.Character
-            if not c or not c.Parent then return end
-            local r = self.Utils:GetPlayerRoot(c)
-            if not r then return end
-
-            if toolLabel and toolLabel.Visible and toolLabel.Parent then
-                local tool = c:FindFirstChildOfClass("Tool")
-                toolLabel.Text = tool and ("[ " .. tool.Name .. " ]") or ""
-            end
-
-            if healthLabel and healthLabel.Visible and healthLabel.Parent then
-                local humanoid = c:FindFirstChildOfClass("Humanoid")
-                if humanoid then
-                    local health = math.floor(humanoid.Health)
-                    healthLabel.Text = health .. " HP"
-                    healthLabel.TextColor3 = self.Utils:GetHealthColor(humanoid.Health / humanoid.MaxHealth)
-                end
-            end
-
-            if distLabel and distLabel.Visible and distLabel.Parent then
-                local myChar = LocalPlayer.Character
-                local myRoot = self.Utils:GetPlayerRoot(myChar)
-                if myRoot then
-                    local dist = (myRoot.Position - r.Position).Magnitude
-                    local maxDist = maxDistance or 99999
-                    distLabel.Text = math.floor(dist) .. "m"
-                    distLabel.TextColor3 = self.Utils:GetDistanceColor(dist)
-                    local visible = dist <= maxDist
-                    if billboard.Enabled ~= visible then billboard.Enabled = visible end
-                    if espTable.Highlight then espTable.Highlight.Enabled = visible end
-                end
-            end
-        end)
-        espTable.DistanceConnection = connection
-        if self.Utils then self.Utils:AddConnection(connection) end
-    end
-
-    local charAddedConn = player.CharacterAdded:Connect(function()
-        if self.Options.player.ESP then
-            task.wait(1)
-            self:RemovePlayerESP(player)
-            self:CreatePlayerESP(player, maxDistance)
-        end
-    end)
-    espTable.CharAddedConn = charAddedConn
-    if self.Utils then self.Utils:AddConnection(charAddedConn) end
-
-    self.Instances.player[player] = espTable
-end
-
-function ESP:RefreshPlayerESP(maxDistance)
-    for player, _ in pairs(self.Instances.player) do
-        self:RemovePlayerESP(player)
-    end
-    if not self.Options.player.ESP then return end
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            if player.Character then
-                self:CreatePlayerESP(player, maxDistance)
-            else
-                local conn = player.CharacterAdded:Connect(function()
-                    conn:Disconnect()
-                    if self.Options.player.ESP then
-                        task.wait(1)
-                        self:CreatePlayerESP(player, maxDistance)
-                    end
-                end)
-                if self.Utils then self.Utils:AddConnection(conn) end
-            end
-        end
-    end
-end
-
--- ============================================
--- STRUCTURE ESP FUNCTIONS
--- ============================================
-function ESP:RemoveStructureESP(structure)
-    local esp = self.Instances.structure[structure]
-    if esp then
-        if esp.Highlight then esp.Highlight:Destroy() end
-        if esp.Billboard then esp.Billboard:Destroy() end
-        if esp.DistanceConnection then esp.DistanceConnection:Disconnect() end
-        self.Instances.structure[structure] = nil
-    end
-end
-
-function ESP:CreateStructureESP(structure, structureNames, maxDistance)
-    if not structure:IsA("Model") then return end
-    if self.Instances.structure[structure] then return end
-
-    local mainPart = structure.PrimaryPart or self.Utils:GetItemMainPart(structure)
-    if not mainPart then return end
-
-    local espTable = {}
-    local opts = self.Options.structure
-
-    if opts.Chams then
-        local highlight = self.Utils:CreateHighlight(structure, Color3.fromRGB(0, 200, 150), 0.3, Color3.fromRGB(100, 255, 200), 0.7)
-        espTable.Highlight = highlight
-    end
-
-    if opts.Name or opts.Distance then
-        local billboard = self.Utils:CreateBillboard(mainPart, UDim2.new(0, 250, 0, 50), Vector3.new(0, 3, 0))
-        billboard.Parent = structure
-
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(1, 0, 1, 0)
-        frame.BackgroundTransparency = 1
-        frame.Parent = billboard
-
-        local nameLabel = Instance.new("TextLabel")
-        nameLabel.Name = "NameLabel"
-        nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
-        nameLabel.Position = UDim2.new(0, 0, 0, 0)
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = "[STRUCTURE] " .. structure.Name
-        nameLabel.TextColor3 = Color3.fromRGB(0, 255, 200)
-        nameLabel.TextStrokeTransparency = 0.2
-        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-        nameLabel.Font = Enum.Font.GothamBold
-        nameLabel.TextSize = 13
-        nameLabel.Visible = opts.Name
-        nameLabel.Parent = frame
-
-        local distLabel = Instance.new("TextLabel")
-        distLabel.Name = "DistLabel"
-        distLabel.Size = UDim2.new(1, 0, 0.5, 0)
-        distLabel.Position = UDim2.new(0, 0, 0.5, 0)
-        distLabel.BackgroundTransparency = 1
-        distLabel.Text = "0m"
-        distLabel.TextColor3 = Color3.fromRGB(200, 220, 220)
-        distLabel.TextStrokeTransparency = 0.2
-        distLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-        distLabel.Font = Enum.Font.GothamBold
-        distLabel.TextSize = 12
-        distLabel.Visible = opts.Distance
-        distLabel.Parent = frame
-
-        espTable.Billboard = billboard
-        espTable.NameLabel = nameLabel
-        espTable.DistLabel = distLabel
-        espTable.MainPart = mainPart
-
-        local connection
-        connection = RunService.RenderStepped:Connect(function()
-            if not structure or not structure.Parent then
-                connection:Disconnect()
-                return
-            end
-            if distLabel and distLabel.Visible and distLabel.Parent then
-                local myChar = LocalPlayer.Character
-                local myRoot = self.Utils:GetPlayerRoot(myChar)
-                if myRoot then
-                    local dist = (myRoot.Position - mainPart.Position).Magnitude
-                    local maxDist = maxDistance or 99999
-                    distLabel.Text = math.floor(dist) .. "m"
-                    distLabel.TextColor3 = self.Utils:GetDistanceColor(dist)
-                    local visible = dist <= maxDist
-                    if billboard.Enabled ~= visible then billboard.Enabled = visible end
-                    if espTable.Highlight then espTable.Highlight.Enabled = visible end
-                end
-            end
-        end)
-        espTable.DistanceConnection = connection
-        if self.Utils then self.Utils:AddConnection(connection) end
-    end
-
-    self.Instances.structure[structure] = espTable
-end
-
-function ESP:RefreshStructureESP(structureNames, maxDistance)
-    for structure, _ in pairs(self.Instances.structure) do
-        self:RemoveStructureESP(structure)
-    end
-    if not self.Options.structure.ESP then return end
-    local folders = self.Utils:DiscoverFolders()
-    if not folders.structuresFolder then return end
-    for _, child in ipairs(folders.structuresFolder:GetChildren()) do
-        local found = false
-        for _, name in ipairs(structureNames) do
-            if child.Name == name then found = true break end
-        end
-        if found then
-            self:CreateStructureESP(child, structureNames, maxDistance)
-        end
-    end
-end
-
--- ============================================
--- ITEM ESP FUNCTIONS (NEW - SEPERTI SINGLE FILE)
+-- ITEM ESP FUNCTIONS (Dengan Nama Item)
 -- ============================================
 function ESP:RemoveItemESP(category, item)
     local instances = self.ItemInstances[category]
@@ -549,27 +159,41 @@ function ESP:RemoveItemESP(category, item)
 end
 
 function ESP:CreateItemESP(category, item, maxDistance)
-    local itemData = self.ItemCategories[category]
-    if not itemData then return end
+    local def = itemDefinitions[category]
+    if not def then return end
     
     if not item:IsA("Model") then return end
     
     local instances = self.ItemInstances[category]
     if instances[item] then return end
 
-    local mainPart = self.Utils:GetItemMainPart(item)
+    local mainPart = getItemMainPart(item)
     if not mainPart then return end
 
     local opts = self.ItemOptions[category]
     local espTable = {}
 
+    -- Chams (Highlight)
     if opts.Chams then
-        local highlight = self.Utils:CreateHighlight(item, itemData.color, 0.4, Color3.fromRGB(255, 255, 255), 0.8)
+        local highlight = Instance.new("Highlight")
+        highlight.Name = category .. "ESP_Highlight"
+        highlight.Adornee = item
+        highlight.FillColor = def.fillColor
+        highlight.FillTransparency = 0.4
+        highlight.OutlineColor = def.outlineColor
+        highlight.OutlineTransparency = 0.8
+        highlight.Parent = item
         espTable.Highlight = highlight
     end
 
+    -- Name and Distance Billboard
     if opts.Name or opts.Distance then
-        local billboard = self.Utils:CreateBillboard(mainPart, UDim2.new(0, 220, 0, 50), Vector3.new(0, 2, 0))
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = category .. "ESP_NameDistance"
+        billboard.Adornee = mainPart
+        billboard.Size = UDim2.new(0, 220, 0, 50)
+        billboard.StudsOffset = Vector3.new(0, 2, 0)
+        billboard.AlwaysOnTop = true
         billboard.Parent = item
 
         local frame = Instance.new("Frame")
@@ -577,13 +201,14 @@ function ESP:CreateItemESP(category, item, maxDistance)
         frame.BackgroundTransparency = 1
         frame.Parent = billboard
 
+        -- Name Label (Menampilkan [Gun] AK-47)
         local nameLabel = Instance.new("TextLabel")
         nameLabel.Name = "NameLabel"
         nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
         nameLabel.Position = UDim2.new(0, 0, 0, 0)
         nameLabel.BackgroundTransparency = 1
         nameLabel.Text = "[" .. category .. "] " .. item.Name
-        nameLabel.TextColor3 = itemData.textColor
+        nameLabel.TextColor3 = def.textColor
         nameLabel.TextStrokeTransparency = 0.2
         nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         nameLabel.Font = Enum.Font.GothamBold
@@ -591,6 +216,7 @@ function ESP:CreateItemESP(category, item, maxDistance)
         nameLabel.Visible = opts.Name
         nameLabel.Parent = frame
 
+        -- Distance Label
         local distLabel = Instance.new("TextLabel")
         distLabel.Name = "DistLabel"
         distLabel.Size = UDim2.new(1, 0, 0.5, 0)
@@ -610,6 +236,7 @@ function ESP:CreateItemESP(category, item, maxDistance)
         espTable.DistLabel = distLabel
         espTable.MainPart = mainPart
 
+        -- Update distance every frame
         local connection
         connection = RunService.RenderStepped:Connect(function()
             if not item or not item.Parent then
@@ -618,13 +245,12 @@ function ESP:CreateItemESP(category, item, maxDistance)
             end
             if distLabel and distLabel.Visible and distLabel.Parent then
                 local myChar = LocalPlayer.Character
-                local myRoot = self.Utils:GetPlayerRoot(myChar)
+                local myRoot = myChar and (myChar:FindFirstChild("HumanoidRootPart") or myChar:FindFirstChild("Torso") or myChar:FindFirstChild("UpperTorso"))
                 if myRoot then
                     local dist = (myRoot.Position - mainPart.Position).Magnitude
                     distLabel.Text = math.floor(dist) .. "m"
-                    distLabel.TextColor3 = self.Utils:GetDistanceColor(dist)
-                    local maxDist = maxDistance or 99999
-                    local visible = dist <= maxDist
+                    distLabel.TextColor3 = getDistanceColor(dist)
+                    local visible = dist <= (maxDistance or 500)
                     if billboard.Enabled ~= visible then
                         billboard.Enabled = visible
                     end
@@ -635,7 +261,6 @@ function ESP:CreateItemESP(category, item, maxDistance)
             end
         end)
         espTable.DistanceConnection = connection
-        if self.Utils then self.Utils:AddConnection(connection) end
     end
 
     instances[item] = espTable
@@ -645,7 +270,7 @@ function ESP:RefreshItemESP(category, maxDistance)
     local instances = self.ItemInstances[category]
     if not instances then return end
     
-    -- Remove all existing
+    -- Remove all existing ESP for this category
     for item, _ in pairs(instances) do
         self:RemoveItemESP(category, item)
     end
@@ -654,27 +279,22 @@ function ESP:RefreshItemESP(category, maxDistance)
     if not self.ItemOptions[category].ESP then return end
     
     -- Find all items in DroppedItems folder
-    local folders = self.Utils:DiscoverFolders()
-    if not folders.droppedItemsFolder then return end
+    local droppedItems = Workspace:FindFirstChild("DroppedItems")
+    if not droppedItems then return end
     
-    local itemData = self.ItemCategories[category]
-    if not itemData then return end
+    local def = itemDefinitions[category]
+    if not def then return end
     
-    -- Create item lookup for this category
-    local itemLookup = {}
-    for _, itemName in ipairs(itemData.items) do
-        itemLookup[itemName] = true
-    end
-    
-    for _, child in ipairs(folders.droppedItemsFolder:GetChildren()) do
-        if itemLookup[child.Name] then
+    -- Create ESP for matching items
+    for _, child in ipairs(droppedItems:GetChildren()) do
+        if def.itemLookup[child.Name] then
             self:CreateItemESP(category, child, maxDistance)
         end
     end
 end
 
 function ESP:RefreshAllItemESP(maxDistance)
-    for category, _ in pairs(self.ItemCategories) do
+    for category, _ in pairs(itemDefinitions) do
         self:RefreshItemESP(category, maxDistance)
     end
 end
@@ -682,64 +302,81 @@ end
 function ESP:SetItemCategoryESP(category, enabled)
     if not self.ItemOptions[category] then return end
     self.ItemOptions[category].ESP = enabled
-    local maxDistance = self.Config:GetOptions().ESPMaxDistance
+    local maxDistance = self.Config:GetOptions().ESPMaxDistance or 500
     self:RefreshItemESP(category, maxDistance)
 end
 
 function ESP:SetAllItemChams(enabled)
-    for category, _ in pairs(self.ItemCategories) do
+    for category, _ in pairs(itemDefinitions) do
         self.ItemOptions[category].Chams = enabled
         if self.ItemOptions[category].ESP then
-            local maxDistance = self.Config:GetOptions().ESPMaxDistance
+            local maxDistance = self.Config:GetOptions().ESPMaxDistance or 500
             self:RefreshItemESP(category, maxDistance)
         end
     end
 end
 
+function ESP:SetItemNameVisibility(category, enabled)
+    if not self.ItemOptions[category] then return end
+    self.ItemOptions[category].Name = enabled
+    
+    -- Update existing instances
+    local instances = self.ItemInstances[category]
+    if instances then
+        for _, esp in pairs(instances) do
+            if esp.NameLabel then
+                esp.NameLabel.Visible = enabled
+            end
+        end
+    end
+end
+
+function ESP:SetItemDistanceVisibility(category, enabled)
+    if not self.ItemOptions[category] then return end
+    self.ItemOptions[category].Distance = enabled
+    
+    -- Update existing instances
+    local instances = self.ItemInstances[category]
+    if instances then
+        for _, esp in pairs(instances) do
+            if esp.DistLabel then
+                esp.DistLabel.Visible = enabled
+            end
+        end
+    end
+end
+
 function ESP:SetupItemListeners()
-    local folders = self.Utils:DiscoverFolders()
-    if not folders.droppedItemsFolder then return end
+    local droppedItems = Workspace:FindFirstChild("DroppedItems")
+    if not droppedItems then return end
     
     -- Child added listener
-    local addedConn = folders.droppedItemsFolder.ChildAdded:Connect(function(child)
-        for category, data in pairs(self.ItemCategories) do
-            if self.ItemOptions[category].ESP then
-                local found = false
-                for _, itemName in ipairs(data.items) do
-                    if child.Name == itemName then
-                        found = true
-                        break
-                    end
-                end
-                if found then
-                    local maxDistance = self.Config:GetOptions().ESPMaxDistance
-                    self:CreateItemESP(category, child, maxDistance)
-                end
+    local addedConn = droppedItems.ChildAdded:Connect(function(child)
+        for category, def in pairs(itemDefinitions) do
+            if self.ItemOptions[category].ESP and def.itemLookup[child.Name] then
+                local maxDistance = self.Config:GetOptions().ESPMaxDistance or 500
+                self:CreateItemESP(category, child, maxDistance)
             end
         end
     end)
-    if self.Utils then self.Utils:AddConnection(addedConn) end
     
     -- Child removed listener
-    local removedConn = folders.droppedItemsFolder.ChildRemoved:Connect(function(child)
-        for category, data in pairs(self.ItemCategories) do
-            local found = false
-            for _, itemName in ipairs(data.items) do
-                if child.Name == itemName then
-                    found = true
-                    break
-                end
-            end
-            if found then
+    local removedConn = droppedItems.ChildRemoved:Connect(function(child)
+        for category, def in pairs(itemDefinitions) do
+            if def.itemLookup[child.Name] then
                 self:RemoveItemESP(category, child)
             end
         end
     end)
-    if self.Utils then self.Utils:AddConnection(removedConn) end
+    
+    if self.Utils then
+        self.Utils:AddConnection(addedConn)
+        self.Utils:AddConnection(removedConn)
+    end
 end
 
 -- ============================================
--- SETTER METHODS
+-- SETTER METHODS (Untuk Mob, Player, Structure)
 -- ============================================
 function ESP:SetMobOptions(opts)
     self.Options.mob = opts
@@ -757,44 +394,26 @@ function ESP:SetStructureOptions(opts)
 end
 
 function ESP:RefreshAll()
-    local config = self.Config
-    local utils = self.Utils
-    if not utils then return end
-    
-    local maxDistance = config:GetOptions().ESPMaxDistance
-    local mobNames = config:GetMobNames()
-    local structureNames = config:GetStructureNames()
-    
-    self:RefreshMobESP(mobNames, maxDistance)
-    self:RefreshPlayerESP(maxDistance)
-    self:RefreshStructureESP(structureNames, maxDistance)
-    self:RefreshAllItemESP(maxDistance)
+    -- This will be implemented later with full ESP
+    print("[ESP] Refresh all called")
 end
 
 -- ============================================
 -- INIT
 -- ============================================
 function ESP:Init(deps)
-    self.Config = deps.Config
-    self.Utils = deps.Utils
-    self.Network = deps.Network
-    self.Notifications = deps.Notifications
+    self.Config = deps.config or deps.Config
+    self.Utils = deps.utils or deps.Utils
+    self.Network = deps.network or deps.Network
+    self.Notifications = deps.notifications or deps.Notifications
     
-    -- Initialize ItemOptions from config if available
-    if self.Config then
-        for category, _ in pairs(self.ItemCategories) do
-            if not self.ItemOptions[category] then
-                self.ItemOptions[category] = { ESP = false, Chams = false, Name = false, Distance = false }
-            end
-        end
-    end
-    
-    -- Setup item listeners
+    -- Setup item listeners after a short delay
     task.spawn(function()
         task.wait(2)
         self:SetupItemListeners()
     end)
     
+    print("[ESP MODULE] Initialized with Item ESP")
     return self
 end
 
