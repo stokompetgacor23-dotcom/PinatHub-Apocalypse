@@ -1,5 +1,5 @@
 -- =======================================================
--- PINATHUB - ESP MODULE (COMPLETE - SAMA SEPERTI SINGLE CODE)
+-- PINATHUB - ESP MODULE (COMPLETE - FIXED)
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -10,16 +10,15 @@ local LocalPlayer = Players.LocalPlayer
 local ESP = {}
 
 -- ============================================
--- STATE VARIABLES (Sama seperti single code)
+-- STATE VARIABLES
 -- ============================================
 ESP.Connections = {}
 ESP.MobESPInstances = {}
 ESP.PlayerESPInstances = {}
 ESP.StructureESPInstances = {}
 ESP.CrateESPInstances = {}
-ESP.Systems = {}  -- Untuk item ESP systems
+ESP.Systems = {}
 
--- Options (Sama seperti single code)
 ESP.Options = {
     ESPMaxDistance = 500
 }
@@ -37,10 +36,8 @@ ESP.CrateOptions = {
     OutlineColor = Color3.fromRGB(255, 255, 255)
 }
 
--- Mob names (Sama seperti single code)
 ESP.MobNames = {"Runner", "Crawler", "Riot", "Zombie", "Brute", "Spitter", "Boss"}
 
--- Structure names (Sama seperti single code)
 ESP.StructureNames = {
     "Ammo Crate", "Barbed Wire", "Bear Trap", "Boost Pad", "Electric Fence",
     "Farm Plot", "Fence", "Floodlight", "Gate", "Landmine", "Map", "Repair Drone",
@@ -48,7 +45,7 @@ ESP.StructureNames = {
 }
 
 -- ============================================
--- ITEM CATEGORIES & COLOR DEFINITIONS (Sama seperti single code)
+-- ITEM CATEGORIES
 -- ============================================
 ESP.EspDefinitions = {
     {
@@ -122,7 +119,6 @@ ESP.EspDefinitions = {
     },
 }
 
--- Initialize ESP systems
 for _, def in ipairs(ESP.EspDefinitions) do
     ESP.Systems[def.key] = {
         key = def.key,
@@ -145,7 +141,7 @@ ESP.DroppedItemsFolder = nil
 ESP.StructuresFolder = nil
 
 -- ============================================
--- UTILITY FUNCTIONS (Sama seperti single code)
+-- UTILITY FUNCTIONS
 -- ============================================
 local function getItemMainPart(item)
     if item.PrimaryPart then return item.PrimaryPart end
@@ -179,7 +175,7 @@ local function discoverFolders()
 end
 
 -- ============================================
--- MOB ESP FUNCTIONS (Sama seperti single code)
+-- MOB ESP
 -- ============================================
 function ESP:RemoveMobESP(char)
     local esp = self.MobESPInstances[char]
@@ -307,7 +303,7 @@ function ESP:RefreshMobESP()
 end
 
 -- ============================================
--- PLAYER ESP FUNCTIONS (Sama seperti single code)
+-- PLAYER ESP
 -- ============================================
 function ESP:RemovePlayerESP(player)
     local esp = self.PlayerESPInstances[player]
@@ -500,7 +496,7 @@ function ESP:RefreshPlayerESP()
 end
 
 -- ============================================
--- STRUCTURE ESP FUNCTIONS (Sama seperti single code)
+-- STRUCTURE ESP
 -- ============================================
 function ESP:RemoveStructureESP(structure)
     local esp = self.StructureESPInstances[structure]
@@ -625,7 +621,7 @@ function ESP:RefreshStructureESP()
 end
 
 -- ============================================
--- GENERIC ITEM ESP FACTORY (Sama seperti single code)
+-- ITEM ESP
 -- ============================================
 function ESP:CreateCategoryESP(sys, item)
     if not item:IsA("Model") then return end
@@ -758,6 +754,7 @@ function ESP:SetupCategoryListeners(sys)
         end
     end)
     table.insert(self.Connections, addedConn)
+    -- FIXED: Ganti ChildRemoving ke ChildRemoved
     local removedConn = self.DroppedItemsFolder.ChildRemoved:Connect(function(child)
         self:RemoveCategoryESP(sys, child)
     end)
@@ -765,7 +762,7 @@ function ESP:SetupCategoryListeners(sys)
 end
 
 -- ============================================
--- CRATES ESP FUNCTIONS (Sama seperti single code)
+-- CRATES ESP
 -- ============================================
 function ESP:FindAllCrates()
     local crates = {}
@@ -927,7 +924,8 @@ function ESP:SetupCrateListeners()
         end
     end)
     table.insert(self.Connections, childAddedConn)
-    local childRemovedConn = cratesFolder.ChildRemoving:Connect(function(child)
+    -- FIXED: Ganti ChildRemoving ke ChildRemoved
+    local childRemovedConn = cratesFolder.ChildRemoved:Connect(function(child)
         if child.Name == "Default" and child:IsA("Model") then
             self:RemoveCrateESP(child)
         end
@@ -936,7 +934,7 @@ function ESP:SetupCrateListeners()
 end
 
 -- ============================================
--- FOLDER EVENT LISTENERS
+-- LISTENERS
 -- ============================================
 function ESP:SetupMobListeners()
     if not self.CharactersFolder or self.MobListenersSetup then return end
@@ -971,7 +969,7 @@ function ESP:SetupStructureListeners()
 end
 
 -- ============================================
--- REFRESH ALL (Sama seperti single code)
+-- REFRESH ALL
 -- ============================================
 function ESP:RefreshAll()
     self:RefreshMobESP()
@@ -984,7 +982,7 @@ function ESP:RefreshAll()
 end
 
 -- ============================================
--- SETTER METHODS (Untuk UI)
+-- SETTER METHODS
 -- ============================================
 function ESP:SetMobOptions(opts)
     self.MobOptions = opts
@@ -1019,25 +1017,21 @@ function ESP:SetItemCategoryESP(category, enabled)
 end
 
 -- ============================================
--- INIT (Sama seperti single code)
+-- INIT
 -- ============================================
 function ESP:Init(deps)
     self.Utils = deps.utils or deps.Utils
     self.Config = deps.config or deps.Config
     self.Notifications = deps.notifications or deps.Notifications
     
-    -- Discover folders
     discoverFolders()
     
-    -- Setup all ESP systems
     for _, sys in pairs(self.Systems) do
         self:SetupCategoryListeners(sys)
     end
     
-    -- Setup crate listeners
     self:SetupCrateListeners()
     
-    -- Start folder watcher
     task.spawn(function()
         while true do
             task.wait(5)
@@ -1061,11 +1055,10 @@ function ESP:Init(deps)
         end
     end)
     
-    -- Setup mob and structure listeners
     self:SetupMobListeners()
     self:SetupStructureListeners()
     
-    print("[ESP MODULE] Initialized - Same as single code version")
+    print("[ESP MODULE] Initialized")
     return self
 end
 
