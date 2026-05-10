@@ -1,5 +1,5 @@
 -- =======================================================
--- PINATHUB - UI MODULE (COMPLETE WITH ALL MODULES)
+-- PINATHUB - UI MODULE (FIXED - ESP BERFUNGSI)
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -123,14 +123,13 @@ end
 -- INIT FUNCTION
 -- ============================================
 function UI:Init(modules)
-    -- Load WindUI library
     local WindUI = loadWindUI()
     if not WindUI then 
         print("Failed to load WindUI Library")
         return nil
     end
     
-    -- Store dependencies from modules table
+    -- Store dependencies
     self.Config = modules.config or modules.Config
     self.Utils = modules.utils or modules.Utils
     self.ESP = modules.esp or modules.ESP
@@ -140,17 +139,18 @@ function UI:Init(modules)
     self.Network = modules.network or modules.Network
     self.Notifications = modules.notifications or modules.Notifications
     self.Player = modules.player or modules.Player
-    self.AutoPickup = modules.autoPickup or modules.AutoPickup  -- <-- TAMBAHKAN AUTO PICKUP
+    self.AutoPickup = modules.autoPickup or modules.AutoPickup
     
-    -- Validate Config module
     if not self.Config then
         print("ERROR: Config module not found!")
         return nil
     end
     
-    -- ============================================
-    -- STEP 1: CREATE MAIN WINDOW
-    -- ============================================
+    if not self.ESP then
+        print("WARNING: ESP module not found! ESP features disabled.")
+    end
+    
+    -- Create Window
     self.Window = WindUI:CreateWindow({
         Title = "PinatHub",
         Author = "Survive the Apocalypse",
@@ -160,7 +160,6 @@ function UI:Init(modules)
         Topbar = { Height = 44, ButtonsType = "Default" }
     })
     
-    -- Add tag to window
     self.Window:Tag({ 
         Title = "@viunze on tiktok", 
         Icon = "star", 
@@ -168,19 +167,13 @@ function UI:Init(modules)
         Border = true 
     })
     
-    -- ============================================
-    -- STEP 2: SETUP NOTIFICATIONS
-    -- ============================================
     if self.Notifications and self.Notifications.SetWindow then
         self.Notifications:SetWindow(self.Window)
     end
     
-    -- ============================================
-    -- STEP 3: CREATE LOGO
-    -- ============================================
+    -- Create Logo
     local logoGui, logoButton = self:CreateLogo()
     
-    -- Logo click handler
     self.GuiVisible = true
     logoButton.MouseButton1Click:Connect(function()
         self.GuiVisible = not self.GuiVisible
@@ -195,9 +188,7 @@ function UI:Init(modules)
         end
     end)
     
-    -- ============================================
-    -- STEP 4: CREATE TABS
-    -- ============================================
+    -- Create Tabs
     local InfoTab = self.Window:Tab({ Title = "Info", Icon = "info", IconColor = Color3.fromHex("#00FFFF"), Border = true })
     local VisualsTab = self.Window:Tab({ Title = "Visuals", Icon = "eye", IconColor = Color3.fromHex("#00FFFF"), Border = true })
     local PlayerTab = self.Window:Tab({ Title = "Player", Icon = "user", IconColor = Color3.fromHex("#30FF6A"), Border = true })
@@ -206,21 +197,26 @@ function UI:Init(modules)
     local MiscTab = self.Window:Tab({ Title = "Misc", Icon = "settings", IconColor = Color3.fromHex("#9B59B6"), Border = true })
     local CommunityTab = self.Window:Tab({ Title = "Community", Icon = "message-circle", IconColor = Color3.fromHex("#9B59B6"), Border = true })
     
-    -- ============================================
-    -- STEP 5: BUILD ALL UI SECTIONS
-    -- ============================================
+    -- Build all sections
     self:BuildInfoTab(InfoTab)
     self:BuildVisualsTab(VisualsTab)
     self:BuildPlayerTab(PlayerTab)
     self:BuildCombatTab(CombatTab)
-    self:BuildExploitsTab(ExploitsTab)  -- <-- UPDATED dengan AutoPickup
+    self:BuildExploitsTab(ExploitsTab)
     self:BuildMiscTab(MiscTab)
     self:BuildCommunityTab(CommunityTab)
     
-    -- Open window
     self.Window:Open()
     print("UI initialized successfully!")
-    print("Auto Pickup feature available in Exploits Tab!")
+    
+    -- Auto refresh ESP after UI loads
+    task.spawn(function()
+        task.wait(2)
+        if self.ESP and self.ESP.RefreshAll then
+            self.ESP:RefreshAll()
+            print("[UI] ESP auto-refresh completed")
+        end
+    end)
     
     return self
 end
@@ -254,7 +250,7 @@ function UI:BuildInfoTab(tab)
 end
 
 -- ============================================
--- VISUALS TAB (WITH ITEM ESP)
+-- VISUALS TAB (FIXED - ESP Mob dan Item ESP berfungsi)
 -- ============================================
 function UI:BuildVisualsTab(tab)
     local config = self.Config
@@ -265,99 +261,177 @@ function UI:BuildVisualsTab(tab)
     local options = config:GetOptions()
     local crateOptions = config:GetCrateOptions()
     
-    -- ESP Settings Section
+    -- ========== ESP SETTINGS SECTION ==========
     local espSettingsSection = tab:Section({ Title = "ESP Settings" })
     
-    local function updateNames(value)
-        if esp then
-            if esp.SetMobOptions then
-                esp:SetMobOptions({ ESP = esp.Options.mob.ESP, Chams = esp.Options.mob.Chams, Name = value, Distance = esp.Options.mob.Distance })
-                esp:SetPlayerOptions({ ESP = esp.Options.player.ESP, Chams = esp.Options.player.Chams, Name = value, Distance = esp.Options.player.Distance, Health = esp.Options.player.Health })
-                esp:SetStructureOptions({ ESP = esp.Options.structure.ESP, Chams = esp.Options.structure.Chams, Name = value, Distance = esp.Options.structure.Distance })
-                esp:RefreshAll()
+    espSettingsSection:Toggle({ 
+        Title = "Show Names", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                -- Update Mob ESP name visibility
+                esp.MobOptions.Name = value
+                esp:RefreshMobESP()
+                -- Update Player ESP name visibility  
+                esp.PlayerESPVars.Name = value
+                esp:RefreshPlayerESP()
+                -- Update Structure ESP name visibility
+                esp.StructureESPVars.Name = value
+                esp:RefreshStructureESP()
+                -- Update Crate ESP name visibility
+                if crateOptions then crateOptions.Name = value end
+                esp:RefreshCrateESP()
+                print("[UI] Show Names:", value)
             end
-        end
-        if crateOptions then crateOptions.Name = value end
-    end
+        end 
+    })
     
-    local function updateDistance(value)
-        if esp then
-            if esp.SetMobOptions then
-                esp:SetMobOptions({ ESP = esp.Options.mob.ESP, Chams = esp.Options.mob.Chams, Name = esp.Options.mob.Name, Distance = value })
-                esp:SetPlayerOptions({ ESP = esp.Options.player.ESP, Chams = esp.Options.player.Chams, Name = esp.Options.player.Name, Distance = value, Health = esp.Options.player.Health })
-                esp:SetStructureOptions({ ESP = esp.Options.structure.ESP, Chams = esp.Options.structure.Chams, Name = esp.Options.structure.Name, Distance = value })
-                esp:RefreshAll()
+    espSettingsSection:Toggle({ 
+        Title = "Show Distance", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                esp.MobOptions.Distance = value
+                esp:RefreshMobESP()
+                esp.PlayerESPVars.Distance = value
+                esp:RefreshPlayerESP()
+                esp.StructureESPVars.Distance = value
+                esp:RefreshStructureESP()
+                if crateOptions then crateOptions.Distance = value end
+                esp:RefreshCrateESP()
+                print("[UI] Show Distance:", value)
             end
-        end
-        if crateOptions then crateOptions.Distance = value end
-    end
+        end 
+    })
     
-    espSettingsSection:Toggle({ Title = "Show Names", Default = false, Callback = updateNames })
-    espSettingsSection:Toggle({ Title = "Show Distance", Default = false, Callback = updateDistance })
-    
-    -- Mob ESP
+    -- ========== MOB ESP SECTION ==========
     local mobSection = tab:Section({ Title = "Mob ESP" })
-    mobSection:Toggle({ Title = "Mob ESP", Default = false, Callback = function(v) 
-        if esp and esp.SetMobOptions then 
-            esp:SetMobOptions({ ESP = v, Chams = esp.Options.mob.Chams, Name = esp.Options.mob.Name, Distance = esp.Options.mob.Distance })
-            esp:RefreshAll() 
-        end 
-    end })
-    mobSection:Toggle({ Title = "Mob Chams", Default = false, Callback = function(v) 
-        if esp and esp.SetMobOptions then 
-            esp:SetMobOptions({ ESP = esp.Options.mob.ESP, Chams = v, Name = esp.Options.mob.Name, Distance = esp.Options.mob.Distance })
-            esp:RefreshAll() 
-        end 
-    end })
     
-    -- Player ESP
+    mobSection:Toggle({ 
+        Title = "Mob ESP", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                esp.MobOptions.ESP = value
+                esp:RefreshMobESP()
+                if self.Notifications then 
+                    self.Notifications:Show("Mob ESP", value and "Enabled" or "Disabled", 1)
+                end
+                print("[UI] Mob ESP:", value)
+            end
+        end 
+    })
+    
+    mobSection:Toggle({ 
+        Title = "Mob Chams", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                esp.MobOptions.Chams = value
+                esp:RefreshMobESP()
+                print("[UI] Mob Chams:", value)
+            end
+        end 
+    })
+    
+    -- ========== PLAYER ESP SECTION ==========
     local playerSection = tab:Section({ Title = "Player ESP" })
-    playerSection:Toggle({ Title = "Player ESP", Default = false, Callback = function(v) 
-        if esp and esp.SetPlayerOptions then 
-            esp:SetPlayerOptions({ ESP = v, Chams = esp.Options.player.Chams, Name = esp.Options.player.Name, Distance = esp.Options.player.Distance, Health = esp.Options.player.Health })
-            esp:RefreshAll() 
-        end 
-    end })
-    playerSection:Toggle({ Title = "Player Chams", Default = false, Callback = function(v) 
-        if esp and esp.SetPlayerOptions then 
-            esp:SetPlayerOptions({ ESP = esp.Options.player.ESP, Chams = v, Name = esp.Options.player.Name, Distance = esp.Options.player.Distance, Health = esp.Options.player.Health })
-            esp:RefreshAll() 
-        end 
-    end })
-    playerSection:Toggle({ Title = "Show Health", Default = false, Callback = function(v) 
-        if esp and esp.SetPlayerOptions then 
-            esp:SetPlayerOptions({ ESP = esp.Options.player.ESP, Chams = esp.Options.player.Chams, Name = esp.Options.player.Name, Distance = esp.Options.player.Distance, Health = v })
-            esp:RefreshAll() 
-        end 
-    end })
     
-    -- Structure ESP
+    playerSection:Toggle({ 
+        Title = "Player ESP", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                esp.PlayerESPVars.ESP = value
+                esp:RefreshPlayerESP()
+                print("[UI] Player ESP:", value)
+            end
+        end 
+    })
+    
+    playerSection:Toggle({ 
+        Title = "Player Chams", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                esp.PlayerESPVars.Chams = value
+                esp:RefreshPlayerESP()
+                print("[UI] Player Chams:", value)
+            end
+        end 
+    })
+    
+    playerSection:Toggle({ 
+        Title = "Show Health", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                esp.PlayerESPVars.Health = value
+                esp:RefreshPlayerESP()
+                print("[UI] Show Health:", value)
+            end
+        end 
+    })
+    
+    -- ========== STRUCTURE ESP SECTION ==========
     local structureSection = tab:Section({ Title = "Structure ESP" })
-    structureSection:Toggle({ Title = "Structure ESP", Default = false, Callback = function(v) 
-        if esp and esp.SetStructureOptions then 
-            esp:SetStructureOptions({ ESP = v, Chams = esp.Options.structure.Chams, Name = esp.Options.structure.Name, Distance = esp.Options.structure.Distance })
-            esp:RefreshAll() 
-        end 
-    end })
-    structureSection:Toggle({ Title = "Structure Chams", Default = false, Callback = function(v) 
-        if esp and esp.SetStructureOptions then 
-            esp:SetStructureOptions({ ESP = esp.Options.structure.ESP, Chams = v, Name = esp.Options.structure.Name, Distance = esp.Options.structure.Distance })
-            esp:RefreshAll() 
-        end 
-    end })
     
-    -- Crates ESP
+    structureSection:Toggle({ 
+        Title = "Structure ESP", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                esp.StructureESPVars.ESP = value
+                esp:RefreshStructureESP()
+                print("[UI] Structure ESP:", value)
+            end
+        end 
+    })
+    
+    structureSection:Toggle({ 
+        Title = "Structure Chams", 
+        Default = false, 
+        Callback = function(value)
+            if esp then
+                esp.StructureESPVars.Chams = value
+                esp:RefreshStructureESP()
+                print("[UI] Structure Chams:", value)
+            end
+        end 
+    })
+    
+    -- ========== CRATES ESP SECTION ==========
     local cratesSection = tab:Section({ Title = "Crates ESP" })
-    cratesSection:Toggle({ Title = "Crates ESP", Default = false, Callback = function(v) 
-        if crateOptions then crateOptions.ESP = v end
-        if esp and esp.RefreshCrateESP then esp:RefreshCrateESP() end
-    end })
-    cratesSection:Toggle({ Title = "Crates Chams", Default = false, Callback = function(v) 
-        if crateOptions then crateOptions.Chams = v end
-        if esp and esp.RefreshCrateESP then esp:RefreshCrateESP() end
-    end })
     
-    -- Item ESP
+    cratesSection:Toggle({ 
+        Title = "Crates ESP", 
+        Default = false, 
+        Callback = function(value)
+            if crateOptions then 
+                crateOptions.ESP = value 
+            end
+            if esp and esp.RefreshCrateESP then 
+                esp:RefreshCrateESP() 
+            end
+            print("[UI] Crates ESP:", value)
+        end 
+    })
+    
+    cratesSection:Toggle({ 
+        Title = "Crates Chams", 
+        Default = false, 
+        Callback = function(value)
+            if crateOptions then 
+                crateOptions.Chams = value 
+            end
+            if esp and esp.RefreshCrateESP then 
+                esp:RefreshCrateESP() 
+            end
+            print("[UI] Crates Chams:", value)
+        end 
+    })
+    
+    -- ========== ITEM ESP SECTION ==========
     local itemSection = tab:Section({ Title = "Item ESP" })
     
     itemSection:Toggle({ 
@@ -366,6 +440,7 @@ function UI:BuildVisualsTab(tab)
         Callback = function(value)
             if esp and esp.SetAllItemChams then
                 esp:SetAllItemChams(value)
+                print("[UI] All Item Chams:", value)
             end
         end 
     })
@@ -388,12 +463,13 @@ function UI:BuildVisualsTab(tab)
             Callback = function(value)
                 if esp and esp.SetItemCategoryESP then
                     esp:SetItemCategoryESP(cat.key, value)
+                    print("[UI] " .. cat.text .. ":", value)
                 end
             end 
         })
     end
     
-    -- ESP Max Distance
+    -- ========== ESP MAX DISTANCE ==========
     local distanceSection = tab:Section({ Title = "ESP Distance Settings" })
     distanceSection:Slider({
         Title = "Max Distance",
@@ -401,14 +477,28 @@ function UI:BuildVisualsTab(tab)
         Value = { Min = 100, Default = 500, Max = 2000 },
         Callback = function(value)
             options.ESPMaxDistance = value
+            if esp then esp.Options.ESPMaxDistance = value end
             if crateOptions then crateOptions.MaxDistance = value end
             if esp and esp.RefreshAll then esp:RefreshAll() end
+            print("[UI] Max Distance:", value)
         end
     })
+    
+    -- Initial refresh to ensure ESP works
+    task.spawn(function()
+        task.wait(1)
+        if esp then
+            esp:RefreshMobESP()
+            esp:RefreshPlayerESP()
+            esp:RefreshStructureESP()
+            esp:RefreshCrateESP()
+            print("[UI] Initial ESP refresh completed")
+        end
+    end)
 end
 
 -- ============================================
--- PLAYER TAB (UPDATED - Dengan Player Module)
+-- PLAYER TAB
 -- ============================================
 function UI:BuildPlayerTab(tab)
     local config = self.Config
@@ -421,7 +511,6 @@ function UI:BuildPlayerTab(tab)
     
     local movementSection = tab:Section({ Title = "Movement" })
     
-    -- Speed Hack
     movementSection:Toggle({ Title = "Speed Hack", Default = false, Callback = function(v) 
         toggles.SpeedHack = v
         if v then 
@@ -439,95 +528,70 @@ function UI:BuildPlayerTab(tab)
     
     movementSection:Slider({ Title = "Speed Value", Description = "Custom walk speed (16-120)", Value = { Min = 16, Default = 50, Max = 120 }, Callback = function(v) 
         options.SpeedValue = v
-        if toggles.SpeedHack and playerModule and playerModule.StartSpeedHack then
+        if toggles.SpeedHack and playerModule then
             playerModule:StartSpeedHack(v)
         end
     end })
     
-    -- Infinite Jump
     movementSection:Toggle({ Title = "Inf Jump", Default = false, Callback = function(v) 
         toggles.InfJump = v
         if v then 
-            if playerModule and playerModule.StartInfJump then 
-                playerModule:StartInfJump()
-                if self.Notifications then self.Notifications:Show("Inf Jump", "Enabled", 2) end
-            end
+            if playerModule then playerModule:StartInfJump() end
+            if self.Notifications then self.Notifications:Show("Inf Jump", "Enabled", 2) end
         else 
-            if playerModule and playerModule.StopInfJump then 
-                playerModule:StopInfJump()
-                if self.Notifications then self.Notifications:Show("Inf Jump", "Disabled", 2) end
-            end
+            if playerModule then playerModule:StopInfJump() end
+            if self.Notifications then self.Notifications:Show("Inf Jump", "Disabled", 2) end
         end
     end })
     
-    -- NoClip
     movementSection:Toggle({ Title = "NoClip", Default = false, Callback = function(v) 
         toggles.NoClip = v
         if v then 
-            if playerModule and playerModule.StartNoclip then 
-                playerModule:StartNoclip()
-                if self.Notifications then self.Notifications:Show("NoClip", "Enabled", 2) end
-            end
+            if playerModule then playerModule:StartNoclip() end
+            if self.Notifications then self.Notifications:Show("NoClip", "Enabled", 2) end
         else 
-            if playerModule and playerModule.StopNoclip then 
-                playerModule:StopNoclip()
-                if self.Notifications then self.Notifications:Show("NoClip", "Disabled", 2) end
-            end
+            if playerModule then playerModule:StopNoclip() end
+            if self.Notifications then self.Notifications:Show("NoClip", "Disabled", 2) end
         end
     end })
     
-    -- Fly
     movementSection:Toggle({ Title = "Fly", Default = false, Callback = function(v) 
         toggles.Fly = v
         if v then 
-            if playerModule and playerModule.StartFly then 
-                playerModule:StartFly(options.FlySpeed)
-                if self.Notifications then self.Notifications:Show("Fly", "Enabled - WASD to move, Space/Shift for up/down", 3) end
-            end
+            if playerModule then playerModule:StartFly(options.FlySpeed) end
+            if self.Notifications then self.Notifications:Show("Fly", "Enabled - WASD to move, Space/Shift for up/down", 3) end
         else 
-            if playerModule and playerModule.StopFly then 
-                playerModule:StopFly()
-                if self.Notifications then self.Notifications:Show("Fly", "Disabled", 2) end
-            end
+            if playerModule then playerModule:StopFly() end
+            if self.Notifications then self.Notifications:Show("Fly", "Disabled", 2) end
         end
     end })
     
     movementSection:Slider({ Title = "Fly Speed", Description = "Flight speed (20-200)", Value = { Min = 20, Default = 50, Max = 200 }, Callback = function(v) 
         options.FlySpeed = v
-        if toggles.Fly and playerModule and playerModule.SetFlySpeed then
+        if toggles.Fly and playerModule then
             playerModule:SetFlySpeed(v)
         end
     end })
     
-    -- Auto Sprint
     movementSection:Toggle({ Title = "Auto Sprint", Default = false, Callback = function(v) 
         toggles.AutoSprint = v
         if v then 
-            if playerModule and playerModule.StartAutoSprint then 
-                playerModule:StartAutoSprint()
-                if self.Notifications then self.Notifications:Show("Auto Sprint", "Enabled", 2) end
-            end
+            if playerModule then playerModule:StartAutoSprint() end
+            if self.Notifications then self.Notifications:Show("Auto Sprint", "Enabled", 2) end
         else 
-            if playerModule and playerModule.StopAutoSprint then 
-                playerModule:StopAutoSprint()
-                if self.Notifications then self.Notifications:Show("Auto Sprint", "Disabled", 2) end
-            end
+            if playerModule then playerModule:StopAutoSprint() end
+            if self.Notifications then self.Notifications:Show("Auto Sprint", "Disabled", 2) end
         end
     end })
     
-    -- Bunny Hop
     movementSection:Toggle({ Title = "Bunny Hop", Default = false, Callback = function(v) 
         toggles.BunnyHop = v
         if v then 
-            if playerModule and playerModule.StartBunnyHop then 
-                playerModule:StartBunnyHop()
-                if self.Notifications then self.Notifications:Show("Bunny Hop", "Enabled", 2) end
-            end
+            if playerModule then playerModule:StartBunnyHop() end
+            if self.Notifications then self.Notifications:Show("Bunny Hop", "Enabled", 2) end
         else 
-            if playerModule and playerModule.StopBunnyHop then 
-                playerModule:StopBunnyHop()
-                if self.Notifications then self.Notifications:Show("Bunny Hop", "Disabled", 2) end
-            end
+            if playerModule then playerModule:StopBunnyHop() end
+            if self.Notifications then self.Notifications:Show("Bunny Hop", "Disabled", 2) end
         end
     end })
 end
@@ -542,8 +606,6 @@ function UI:BuildCombatTab(tab)
     local options = config:GetOptions()
     local toggles = config:GetToggles()
     local farm = self.Farm
-    local network = self.Network
-    local utils = self.Utils
     local notifications = self.Notifications
     
     -- Kill Aura Section
@@ -554,9 +616,6 @@ function UI:BuildCombatTab(tab)
     end })
     killAuraSection:Slider({ Title = "Aura Range", Description = "Jarak serangan Kill Aura (3-25 studs)", Value = { Min = 3, Default = 6, Max = 25 }, Callback = function(v) options.KillAuraRange = v end })
     killAuraSection:Dropdown({ Title = "Target Priority", Values = { "Nearest", "Lowest HP", "Highest HP" }, Default = 1, Callback = function(v) options.KillAuraPriority = v end })
-    killAuraSection:Toggle({ Title = "Auto-Equip Weapon", Default = false, Callback = function(v) toggles.KillAuraAutoEquip = v end })
-    killAuraSection:Toggle({ Title = "Show Target Indicator", Default = true, Callback = function(v) toggles.KillAuraShowIndicator = v end })
-    killAuraSection:Toggle({ Title = "Extended Range (+2 studs)", Default = true, Callback = function(v) toggles.KillAuraExtendedRange = v end })
     
     -- Auto Hunt Section
     local autoHuntSection = tab:Section({ Title = "Auto Hunt Zombie" })
@@ -564,13 +623,13 @@ function UI:BuildCombatTab(tab)
         toggles.AutoHunt = v
         if v then 
             if farm and farm.StartAutoHunt then 
-                farm:StartAutoHunt(utils, network, config, notifications)
-            elseif notifications then 
-                notifications:Show("Error", "Farm module not loaded!", 2)
+                farm:StartAutoHunt()
+                if notifications then notifications:Show("Auto Hunt", "Enabled - Flying to zombies!", 2) end
             end
         else 
             if farm and farm.StopAutoHunt then 
-                farm:StopAutoHunt(notifications)
+                farm:StopAutoHunt()
+                if notifications then notifications:Show("Auto Hunt", "Disabled", 2) end
             end
         end
     end })
@@ -597,7 +656,7 @@ function UI:BuildCombatTab(tab)
 end
 
 -- ============================================
--- EXPLOITS TAB (UPDATED - Dengan AutoPickup Module)
+-- EXPLOITS TAB
 -- ============================================
 function UI:BuildExploitsTab(tab)
     local config = self.Config
@@ -605,157 +664,77 @@ function UI:BuildExploitsTab(tab)
     
     local options = config:GetOptions()
     local toggles = config:GetToggles()
-    local bring = self.Bring
     local farm = self.Farm
-    local autoPickup = self.AutoPickup  -- <-- Ambil AutoPickup module
+    local autoPickup = self.AutoPickup
+    local bring = self.Bring
     local utils = self.Utils
     local network = self.Network
     local notifications = self.Notifications
     
-    -- ========== AUTO PICKUP SECTION (UPDATED) ==========
+    -- Auto Pickup Section
     local autoPickupSection = tab:Section({ Title = "Auto Pickup Item" })
-    
-    autoPickupSection:Toggle({ 
-        Title = "Auto Pickup", 
-        Default = false, 
-        Callback = function(v) 
-            toggles.AutoPickup = v
-            if v then 
-                if autoPickup and autoPickup.Start then 
-                    autoPickup:Start(options, notifications)
-                elseif notifications then 
-                    notifications:Show("Error", "AutoPickup module not loaded!", 2)
-                end
-            else 
-                if autoPickup and autoPickup.Stop then 
-                    autoPickup:Stop(notifications)
-                end
+    autoPickupSection:Toggle({ Title = "Auto Pickup", Default = false, Callback = function(v) 
+        toggles.AutoPickup = v
+        if v then 
+            if autoPickup and autoPickup.Start then 
+                autoPickup:Start(options, notifications)
             end
-        end 
-    })
+        else 
+            if autoPickup and autoPickup.Stop then 
+                autoPickup:Stop(notifications)
+            end
+        end
+    end })
+    autoPickupSection:Toggle({ Title = "Pickup All Items", Default = true, Callback = function(v) options.AutoPickupAll = v end })
+    autoPickupSection:Slider({ Title = "Pickup Range", Description = "Distance to pickup items (12-200)", Value = { Min = 12, Default = 50, Max = 200 }, Callback = function(v) options.AutoPickupRange = v end })
+    autoPickupSection:Slider({ Title = "Pickup Delay", Description = "Delay between pickups (0.05-1)", Value = { Min = 0.05, Default = 0.1, Max = 1, Decimal = true }, Callback = function(v) options.AutoPickupDelay = v end })
     
-    autoPickupSection:Toggle({ 
-        Title = "Pickup All Items", 
-        Default = true, 
-        Callback = function(v) 
-            options.AutoPickupAll = v 
-        end 
-    })
-    
-    autoPickupSection:Slider({ 
-        Title = "Pickup Range", 
-        Description = "Distance to pickup items (12-200)", 
-        Value = { Min = 12, Default = 50, Max = 200 }, 
-        Callback = function(v) 
-            options.AutoPickupRange = v 
-        end 
-    })
-    
-    autoPickupSection:Slider({ 
-        Title = "Pickup Delay", 
-        Description = "Delay between pickups (0.05-1)", 
-        Value = { Min = 0.05, Default = 0.1, Max = 1, Decimal = true }, 
-        Callback = function(v) 
-            options.AutoPickupDelay = v 
-        end 
-    })
-    
-    -- ========== BRING PICKUP SECTION ==========
+    -- Bring Pickup Section
     local bringSection = tab:Section({ Title = "Bring Pickup Item" })
+    bringSection:Toggle({ Title = "Bring Pickup Item", Default = false, Callback = function(v) 
+        toggles.BringPickupItem = v
+        if v then 
+            if bring and bring.Start then bring:Start(config, network, utils) end
+        else 
+            if bring and bring.Stop then bring:Stop() end
+        end
+    end })
+    bringSection:Toggle({ Title = "All Pickup Items", Default = false, Callback = function(v) toggles.BringAllPickup = v end })
+    bringSection:Dropdown({ Title = "Sort Order", Values = { "Nearest First", "Farthest First", "Alphabetical", "Reverse Alphabetical" }, Default = 1, Callback = function(v) options.BringPickupSortOrder = v end })
     
-    bringSection:Toggle({ 
-        Title = "Bring Pickup Item", 
-        Default = false, 
-        Callback = function(v) 
-            toggles.BringPickupItem = v
-            if v then 
-                if bring and bring.Start then 
-                    bring:Start(config, network, utils) 
-                end
-                if notifications then 
-                    notifications:Show("Bring Pickup Item", "Enabled!", 2) 
-                end
-            else 
-                if bring and bring.Stop then 
-                    bring:Stop() 
-                end
-                if notifications then 
-                    notifications:Show("Bring Pickup Item", "Disabled", 2) 
-                end
-            end
-        end 
-    })
-    
-    bringSection:Toggle({ 
-        Title = "All Pickup Items", 
-        Default = false, 
-        Callback = function(v) 
-            toggles.BringAllPickup = v 
-        end 
-    })
-    
-    bringSection:Dropdown({ 
-        Title = "Sort Order", 
-        Values = { "Nearest First", "Farthest First", "Alphabetical", "Reverse Alphabetical" }, 
-        Default = 1, 
-        Callback = function(v) 
-            options.BringPickupSortOrder = v 
-        end 
-    })
-    
-    -- ========== AUTO DESTROY STRUCTURE ==========
+    -- Auto Destroy Structure
     local autoDestroySection = tab:Section({ Title = "Auto Destroy Structure" })
-    
-    autoDestroySection:Toggle({ 
-        Title = "Auto Destroy (Barrel & Scrap Pile)", 
-        Default = false, 
-        Callback = function(v) 
-            toggles.AutoDestroyStructure = v
-            if v then 
-                if farm and farm.StartAutoDestroy then 
-                    farm:StartAutoDestroy(notifications)
-                elseif notifications then 
-                    notifications:Show("Error", "Farm module not loaded!", 2)
-                end
-            else 
-                if farm and farm.StopAutoDestroy then 
-                    farm:StopAutoDestroy(notifications)
-                end
+    autoDestroySection:Toggle({ Title = "Auto Destroy (Barrel & Scrap Pile)", Default = false, Callback = function(v) 
+        toggles.AutoDestroyStructure = v
+        if v then 
+            if farm and farm.StartAutoDestroy then 
+                farm:StartAutoDestroy(notifications)
             end
-        end 
-    })
+        else 
+            if farm and farm.StopAutoDestroy then 
+                farm:StopAutoDestroy(notifications)
+            end
+        end
+    end })
     
-    -- ========== AUTO HUNT FUEL ==========
+    -- Auto Hunt Fuel
     local autoHuntFuelSection = tab:Section({ Title = "Auto Hunt Fuel" })
-    
-    autoHuntFuelSection:Toggle({ 
-        Title = "Auto Hunt Fuel", 
-        Default = false, 
-        Callback = function(v) 
-            toggles.AutoHuntFuel = v
-            if v then 
-                if farm and farm.StartAutoHuntFuel then 
-                    farm:StartAutoHuntFuel(notifications, options)
-                elseif notifications then 
-                    notifications:Show("Error", "Farm module not loaded!", 2)
-                end
-            else 
-                if farm and farm.StopAutoHuntFuel then 
-                    farm:StopAutoHuntFuel(notifications)
-                end
+    autoHuntFuelSection:Toggle({ Title = "Auto Hunt Fuel", Default = false, Callback = function(v) 
+        toggles.AutoHuntFuel = v
+        if v then 
+            if farm and farm.StartAutoHuntFuel then 
+                farm:StartAutoHuntFuel(notifications, options)
             end
-        end 
-    })
-    
-    autoHuntFuelSection:Slider({ 
-        Title = "Fuel Hunt Range", 
-        Description = "Detection range for Fuel (100-5000 studs)", 
-        Value = { Min = 100, Default = 500, Max = 5000 }, 
-        Callback = function(v) 
-            options.FuelHuntRange = v
-            if farm then farm.FuelHuntRange = v end
-        end 
-    })
+        else 
+            if farm and farm.StopAutoHuntFuel then 
+                farm:StopAutoHuntFuel(notifications)
+            end
+        end
+    end })
+    autoHuntFuelSection:Slider({ Title = "Fuel Hunt Range", Description = "Detection range for Fuel (100-5000 studs)", Value = { Min = 100, Default = 500, Max = 5000 }, Callback = function(v) 
+        options.FuelHuntRange = v
+        if farm then farm.FuelHuntRange = v end
+    end })
 end
 
 -- ============================================
@@ -764,59 +743,44 @@ end
 function UI:BuildMiscTab(tab)
     local config = self.Config
     local playerModule = self.Player
+    local teleport = self.Teleport
     
     if not config then return end
     
     local toggles = config:GetToggles()
-    local teleport = self.Teleport
     local options = config:GetOptions()
     
     local utilitySection = tab:Section({ Title = "Utilities" })
     
-    -- Anti AFK
     utilitySection:Toggle({ Title = "Anti-AFK", Default = true, Callback = function(v) 
         toggles.AntiAFK = v
         if v then 
-            if playerModule and playerModule.StartAntiAFK then 
-                playerModule:StartAntiAFK()
-            end
+            if playerModule then playerModule:StartAntiAFK() end
             if self.Notifications then self.Notifications:Show("Anti-AFK", "Enabled", 2) end
         else 
-            if playerModule and playerModule.StopAntiAFK then 
-                playerModule:StopAntiAFK()
-            end
+            if playerModule then playerModule:StopAntiAFK() end
             if self.Notifications then self.Notifications:Show("Anti-AFK", "Disabled", 2) end
         end
     end })
     
-    -- Fullbright
     utilitySection:Toggle({ Title = "Fullbright", Default = false, Callback = function(v) 
         toggles.Fullbright = v
         if v then 
-            if playerModule and playerModule.StartFullbright then 
-                playerModule:StartFullbright()
-            end
+            if playerModule then playerModule:StartFullbright() end
             if self.Notifications then self.Notifications:Show("Fullbright", "Enabled", 2) end
         else 
-            if playerModule and playerModule.StopFullbright then 
-                playerModule:StopFullbright()
-            end
+            if playerModule then playerModule:StopFullbright() end
             if self.Notifications then self.Notifications:Show("Fullbright", "Disabled", 2) end
         end
     end })
     
-    -- Remove Fog
     utilitySection:Toggle({ Title = "Remove Fog", Default = false, Callback = function(v) 
         toggles.RemoveFog = v
         if v then 
-            if playerModule and playerModule.StartRemoveFog then 
-                playerModule:StartRemoveFog()
-            end
+            if playerModule then playerModule:StartRemoveFog() end
             if self.Notifications then self.Notifications:Show("Remove Fog", "Enabled", 2) end
         else 
-            if playerModule and playerModule.StopRemoveFog then 
-                playerModule:StopRemoveFog()
-            end
+            if playerModule then playerModule:StopRemoveFog() end
             if self.Notifications then self.Notifications:Show("Remove Fog", "Disabled", 2) end
         end
     end })
@@ -842,9 +806,7 @@ function UI:BuildMiscTab(tab)
     end })
     fpsSection:Slider({ Title = "FPS Cap", Description = "Maximum FPS (60-240)", Value = { Min = 60, Default = 144, Max = 240 }, Callback = function(v)
         options.FPSCap = v
-        if toggles.FPSUnlock then
-            setfpscap(v)
-        end
+        if toggles.FPSUnlock then setfpscap(v) end
     end })
     
     -- Server Tools
