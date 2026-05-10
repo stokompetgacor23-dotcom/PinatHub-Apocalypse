@@ -1,5 +1,5 @@
 -- =======================================================
--- PINATHUB - UI MODULE (FULLY FIXED)
+-- PINATHUB - UI MODULE (COMPLETE WITH ITEM ESP)
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -208,16 +208,17 @@ function UI:Init(modules)
     -- STEP 5: BUILD ALL UI SECTIONS
     -- ============================================
     self:BuildInfoTab(InfoTab)
-    self:BuildVisualsTab(VisualsTab)
+    self:BuildVisualsTab(VisualsTab)  -- Includes Item ESP
     self:BuildPlayerTab(PlayerTab)
-    self:BuildCombatTab(CombatTab)  -- FIXED
-    self:BuildExploitsTab(ExploitsTab)  -- FIXED
+    self:BuildCombatTab(CombatTab)
+    self:BuildExploitsTab(ExploitsTab)
     self:BuildMiscTab(MiscTab)
     self:BuildCommunityTab(CommunityTab)
     
     -- Open window
     self.Window:Open()
     print("UI initialized successfully!")
+    print("Item ESP features available in Visuals Tab!")
     
     return self
 end
@@ -251,7 +252,7 @@ function UI:BuildInfoTab(tab)
 end
 
 -- ============================================
--- VISUALS TAB
+-- VISUALS TAB (WITH ITEM ESP - SEPERTI SINGLE FILE)
 -- ============================================
 function UI:BuildVisualsTab(tab)
     local config = self.Config
@@ -262,24 +263,29 @@ function UI:BuildVisualsTab(tab)
     local options = config:GetOptions()
     local crateOptions = config:GetCrateOptions()
     
+    -- ========== ESP SETTINGS SECTION ==========
     local espSettingsSection = tab:Section({ Title = "ESP Settings" })
     
     local function updateNames(value)
         if esp then
-            esp:SetMobOptions({ ESP = esp.Options.mob.ESP, Chams = esp.Options.mob.Chams, Name = value, Distance = esp.Options.mob.Distance })
-            esp:SetPlayerOptions({ ESP = esp.Options.player.ESP, Chams = esp.Options.player.Chams, Name = value, Distance = esp.Options.player.Distance, Health = esp.Options.player.Health })
-            esp:SetStructureOptions({ ESP = esp.Options.structure.ESP, Chams = esp.Options.structure.Chams, Name = value, Distance = esp.Options.structure.Distance })
-            esp:RefreshAll()
+            if esp.SetMobOptions then
+                esp:SetMobOptions({ ESP = esp.Options.mob.ESP, Chams = esp.Options.mob.Chams, Name = value, Distance = esp.Options.mob.Distance })
+                esp:SetPlayerOptions({ ESP = esp.Options.player.ESP, Chams = esp.Options.player.Chams, Name = value, Distance = esp.Options.player.Distance, Health = esp.Options.player.Health })
+                esp:SetStructureOptions({ ESP = esp.Options.structure.ESP, Chams = esp.Options.structure.Chams, Name = value, Distance = esp.Options.structure.Distance })
+                esp:RefreshAll()
+            end
         end
         if crateOptions then crateOptions.Name = value end
     end
     
     local function updateDistance(value)
         if esp then
-            esp:SetMobOptions({ ESP = esp.Options.mob.ESP, Chams = esp.Options.mob.Chams, Name = esp.Options.mob.Name, Distance = value })
-            esp:SetPlayerOptions({ ESP = esp.Options.player.ESP, Chams = esp.Options.player.Chams, Name = esp.Options.player.Name, Distance = value, Health = esp.Options.player.Health })
-            esp:SetStructureOptions({ ESP = esp.Options.structure.ESP, Chams = esp.Options.structure.Chams, Name = esp.Options.structure.Name, Distance = value })
-            esp:RefreshAll()
+            if esp.SetMobOptions then
+                esp:SetMobOptions({ ESP = esp.Options.mob.ESP, Chams = esp.Options.mob.Chams, Name = esp.Options.mob.Name, Distance = value })
+                esp:SetPlayerOptions({ ESP = esp.Options.player.ESP, Chams = esp.Options.player.Chams, Name = esp.Options.player.Name, Distance = value, Health = esp.Options.player.Health })
+                esp:SetStructureOptions({ ESP = esp.Options.structure.ESP, Chams = esp.Options.structure.Chams, Name = esp.Options.structure.Name, Distance = value })
+                esp:RefreshAll()
+            end
         end
         if crateOptions then crateOptions.Distance = value end
     end
@@ -287,26 +293,122 @@ function UI:BuildVisualsTab(tab)
     espSettingsSection:Toggle({ Title = "Show Names", Default = false, Callback = updateNames })
     espSettingsSection:Toggle({ Title = "Show Distance", Default = false, Callback = updateDistance })
     
-    -- Mob ESP
+    -- ========== MOB ESP SECTION ==========
     local mobSection = tab:Section({ Title = "Mob ESP" })
     mobSection:Toggle({ Title = "Mob ESP", Default = false, Callback = function(v) 
-        if esp then esp:SetMobOptions({ ESP = v, Chams = esp.Options.mob.Chams, Name = esp.Options.mob.Name, Distance = esp.Options.mob.Distance }); esp:RefreshAll() end 
+        if esp and esp.SetMobOptions then 
+            esp:SetMobOptions({ ESP = v, Chams = esp.Options.mob.Chams, Name = esp.Options.mob.Name, Distance = esp.Options.mob.Distance })
+            esp:RefreshAll() 
+        end 
     end })
     mobSection:Toggle({ Title = "Mob Chams", Default = false, Callback = function(v) 
-        if esp then esp:SetMobOptions({ ESP = esp.Options.mob.ESP, Chams = v, Name = esp.Options.mob.Name, Distance = esp.Options.mob.Distance }); esp:RefreshAll() end 
+        if esp and esp.SetMobOptions then 
+            esp:SetMobOptions({ ESP = esp.Options.mob.ESP, Chams = v, Name = esp.Options.mob.Name, Distance = esp.Options.mob.Distance })
+            esp:RefreshAll() 
+        end 
     end })
     
-    -- Player ESP
+    -- ========== PLAYER ESP SECTION ==========
     local playerSection = tab:Section({ Title = "Player ESP" })
     playerSection:Toggle({ Title = "Player ESP", Default = false, Callback = function(v) 
-        if esp then esp:SetPlayerOptions({ ESP = v, Chams = esp.Options.player.Chams, Name = esp.Options.player.Name, Distance = esp.Options.player.Distance, Health = esp.Options.player.Health }); esp:RefreshAll() end 
+        if esp and esp.SetPlayerOptions then 
+            esp:SetPlayerOptions({ ESP = v, Chams = esp.Options.player.Chams, Name = esp.Options.player.Name, Distance = esp.Options.player.Distance, Health = esp.Options.player.Health })
+            esp:RefreshAll() 
+        end 
     end })
     playerSection:Toggle({ Title = "Player Chams", Default = false, Callback = function(v) 
-        if esp then esp:SetPlayerOptions({ ESP = esp.Options.player.ESP, Chams = v, Name = esp.Options.player.Name, Distance = esp.Options.player.Distance, Health = esp.Options.player.Health }); esp:RefreshAll() end 
+        if esp and esp.SetPlayerOptions then 
+            esp:SetPlayerOptions({ ESP = esp.Options.player.ESP, Chams = v, Name = esp.Options.player.Name, Distance = esp.Options.player.Distance, Health = esp.Options.player.Health })
+            esp:RefreshAll() 
+        end 
     end })
     playerSection:Toggle({ Title = "Show Health", Default = false, Callback = function(v) 
-        if esp then esp:SetPlayerOptions({ ESP = esp.Options.player.ESP, Chams = esp.Options.player.Chams, Name = esp.Options.player.Name, Distance = esp.Options.player.Distance, Health = v }); esp:RefreshAll() end 
+        if esp and esp.SetPlayerOptions then 
+            esp:SetPlayerOptions({ ESP = esp.Options.player.ESP, Chams = esp.Options.player.Chams, Name = esp.Options.player.Name, Distance = esp.Options.player.Distance, Health = v })
+            esp:RefreshAll() 
+        end 
     end })
+    
+    -- ========== STRUCTURE ESP SECTION ==========
+    local structureSection = tab:Section({ Title = "Structure ESP" })
+    structureSection:Toggle({ Title = "Structure ESP", Default = false, Callback = function(v) 
+        if esp and esp.SetStructureOptions then 
+            esp:SetStructureOptions({ ESP = v, Chams = esp.Options.structure.Chams, Name = esp.Options.structure.Name, Distance = esp.Options.structure.Distance })
+            esp:RefreshAll() 
+        end 
+    end })
+    structureSection:Toggle({ Title = "Structure Chams", Default = false, Callback = function(v) 
+        if esp and esp.SetStructureOptions then 
+            esp:SetStructureOptions({ ESP = esp.Options.structure.ESP, Chams = v, Name = esp.Options.structure.Name, Distance = esp.Options.structure.Distance })
+            esp:RefreshAll() 
+        end 
+    end })
+    
+    -- ========== CRATES ESP SECTION ==========
+    local cratesSection = tab:Section({ Title = "Crates ESP" })
+    cratesSection:Toggle({ Title = "Crates ESP", Default = false, Callback = function(v) 
+        if crateOptions then crateOptions.ESP = v end
+        if esp and esp.RefreshCrateESP then esp:RefreshCrateESP() end
+    end })
+    cratesSection:Toggle({ Title = "Crates Chams", Default = false, Callback = function(v) 
+        if crateOptions then crateOptions.Chams = v end
+        if esp and esp.RefreshCrateESP then esp:RefreshCrateESP() end
+    end })
+    
+    -- ========== ITEM ESP SECTION (SEPERTI SINGLE FILE) ==========
+    local itemSection = tab:Section({ Title = "Item ESP" })
+    
+    -- Chams for all categories
+    itemSection:Toggle({ 
+        Title = "Chams (All Categories)", 
+        Default = false, 
+        Callback = function(value)
+            if esp and esp.SetAllItemChams then
+                esp:SetAllItemChams(value)
+            elseif esp and esp.SetItemChamsAll then
+                esp:SetItemChamsAll(value)
+            end
+        end 
+    })
+    
+    -- Individual category toggles
+    local itemCategories = {
+        { key = "Gun", text = "Gun ESP", color = "🔫" },
+        { key = "Melee", text = "Melee ESP", color = "⚔️" },
+        { key = "Medical", text = "Medical ESP", color = "💊" },
+        { key = "Armor", text = "Armor ESP", color = "🛡️" },
+        { key = "Food", text = "Food ESP", color = "🍔" },
+        { key = "Resource", text = "Resources ESP", color = "🔧" },
+        { key = "Fuel", text = "Fuel ESP", color = "⛽" },
+        { key = "Ability", text = "Abilities ESP", color = "✨" },
+    }
+    
+    for _, cat in ipairs(itemCategories) do
+        itemSection:Toggle({ 
+            Title = cat.text, 
+            Default = false, 
+            Callback = function(value)
+                if esp and esp.SetItemCategoryESP then
+                    esp:SetItemCategoryESP(cat.key, value)
+                elseif esp and esp.ToggleItemESP then
+                    esp:ToggleItemESP(cat.key, value)
+                end
+            end 
+        })
+    end
+    
+    -- ========== ESP MAX DISTANCE ==========
+    local distanceSection = tab:Section({ Title = "ESP Distance Settings" })
+    distanceSection:Slider({
+        Title = "Max Distance",
+        Description = "Maximum distance for ESP visibility (100-2000)",
+        Value = { Min = 100, Default = 500, Max = 2000 },
+        Callback = function(value)
+            options.ESPMaxDistance = value
+            if crateOptions then crateOptions.MaxDistance = value end
+            if esp and esp.RefreshAll then esp:RefreshAll() end
+        end
+    })
 end
 
 -- ============================================
@@ -357,7 +459,7 @@ function UI:BuildPlayerTab(tab)
 end
 
 -- ============================================
--- COMBAT TAB (FIXED - Auto Hunt berfungsi)
+-- COMBAT TAB
 -- ============================================
 function UI:BuildCombatTab(tab)
     local config = self.Config
@@ -382,7 +484,7 @@ function UI:BuildCombatTab(tab)
     killAuraSection:Toggle({ Title = "Show Target Indicator", Default = true, Callback = function(v) toggles.KillAuraShowIndicator = v end })
     killAuraSection:Toggle({ Title = "Extended Range (+2 studs)", Default = true, Callback = function(v) toggles.KillAuraExtendedRange = v end })
     
-    -- Auto Hunt Section (FIXED - Sekarang memanggil farm.StartAutoHunt)
+    -- Auto Hunt Section
     local autoHuntSection = tab:Section({ Title = "Auto Hunt Zombie" })
     autoHuntSection:Toggle({ Title = "Auto Hunt", Default = false, Callback = function(v) 
         toggles.AutoHunt = v
@@ -403,10 +505,25 @@ function UI:BuildCombatTab(tab)
     autoHuntSection:Slider({ Title = "Kill Range", Description = "Attack distance (10-50)", Value = { Min = 10, Default = 25, Max = 50 }, Callback = function(v) options.HuntKillRange = v end })
     autoHuntSection:Slider({ Title = "Swing Speed", Description = "Attack speed (0.001-0.05)", Value = { Min = 0.001, Default = 0.010, Max = 0.05, Decimal = true }, Callback = function(v) options.HuntSwingSpeed = v end })
     autoHuntSection:Slider({ Title = "Fly Height", Description = "Height above zombie (3-15)", Value = { Min = 3, Default = 7, Max = 15 }, Callback = function(v) options.HuntFlyHeight = v end })
+    
+    -- Aimbot Section
+    local aimbotSection = tab:Section({ Title = "Aimbot" })
+    aimbotSection:Toggle({ Title = "Aimbot", Default = false, Callback = function(v) 
+        toggles.Aimbot = v
+        if notifications then notifications:Show("Aimbot", v and "Enabled" or "Disabled", 2) end
+    end })
+    aimbotSection:Dropdown({ Title = "Target Mode", Values = { "Mobs", "Players", "Both" }, Default = 1, Callback = function(v) options.AimbotTarget = v end })
+    aimbotSection:Dropdown({ Title = "Aim Part", Values = { "Head", "HumanoidRootPart", "Torso", "UpperTorso" }, Default = 1, Callback = function(v) options.AimbotPart = v end })
+    aimbotSection:Dropdown({ Title = "Target Priority", Values = { "Distance", "FOV" }, Default = 1, Callback = function(v) options.AimbotPriority = v end })
+    aimbotSection:Toggle({ Title = "Velocity Prediction", Default = false, Callback = function(v) toggles.AimbotPrediction = v end })
+    aimbotSection:Toggle({ Title = "FOV Circle", Default = false, Callback = function(v) toggles.AimbotFOVCircle = v end })
+    aimbotSection:Slider({ Title = "Aimbot Range", Description = "Max distance for aimbot (50-500)", Value = { Min = 50, Default = 200, Max = 500 }, Callback = function(v) options.AimbotRange = v end })
+    aimbotSection:Slider({ Title = "Aimbot FOV", Description = "Field of view for aimbot (30-300)", Value = { Min = 30, Default = 100, Max = 300 }, Callback = function(v) options.AimbotFOV = v end })
+    aimbotSection:Slider({ Title = "Smoothness", Description = "Aimbot smoothness (0-1)", Value = { Min = 0, Default = 0.3, Max = 1, Decimal = true }, Callback = function(v) options.AimbotSmoothness = v end })
 end
 
 -- ============================================
--- EXPLOITS TAB (FIXED - Auto Destroy & Auto Hunt Fuel berfungsi)
+-- EXPLOITS TAB
 -- ============================================
 function UI:BuildExploitsTab(tab)
     local config = self.Config
@@ -443,9 +560,9 @@ function UI:BuildExploitsTab(tab)
     bringSection:Toggle({ Title = "All Pickup Items", Default = false, Callback = function(v) toggles.BringAllPickup = v end })
     bringSection:Dropdown({ Title = "Sort Order", Values = { "Nearest First", "Farthest First", "Alphabetical", "Reverse Alphabetical" }, Default = 1, Callback = function(v) options.BringPickupSortOrder = v end })
     
-    -- Auto Destroy (FIXED - Sekarang memanggil farm.StartAutoDestroy)
+    -- Auto Destroy Structure
     local autoDestroySection = tab:Section({ Title = "Auto Destroy Structure" })
-    autoDestroySection:Toggle({ Title = "Auto Destroy", Default = false, Callback = function(v) 
+    autoDestroySection:Toggle({ Title = "Auto Destroy (Barrel & Scrap Pile)", Default = false, Callback = function(v) 
         toggles.AutoDestroyStructure = v
         if v then 
             if farm and farm.StartAutoDestroy then 
@@ -460,7 +577,7 @@ function UI:BuildExploitsTab(tab)
         end
     end })
     
-    -- Auto Hunt Fuel (FIXED - Sekarang memanggil farm.StartAutoHuntFuel)
+    -- Auto Hunt Fuel
     local autoHuntFuelSection = tab:Section({ Title = "Auto Hunt Fuel" })
     autoHuntFuelSection:Toggle({ Title = "Auto Hunt Fuel", Default = false, Callback = function(v) 
         toggles.AutoHuntFuel = v
@@ -513,6 +630,25 @@ function UI:BuildMiscTab(tab)
         if self.Notifications then self.Notifications:Show("ProximityPrompt", v and "Anti Delay Enabled" or "Anti Delay Disabled", 2) end
     end })
     
+    -- FPS Unlock
+    local fpsSection = tab:Section({ Title = "Performance" })
+    fpsSection:Toggle({ Title = "Unlock FPS", Default = false, Callback = function(v)
+        toggles.FPSUnlock = v
+        if v then
+            setfpscap(Options.FPSCap or 144)
+            if self.Notifications then self.Notifications:Show("FPS Unlock", "Enabled - " .. (Options.FPSCap or 144) .. " FPS", 2) end
+        else
+            setfpscap(60)
+            if self.Notifications then self.Notifications:Show("FPS Unlock", "Disabled - Back to 60 FPS", 2) end
+        end
+    end })
+    fpsSection:Slider({ Title = "FPS Cap", Description = "Maximum FPS (60-240)", Value = { Min = 60, Default = 144, Max = 240 }, Callback = function(v)
+        Options.FPSCap = v
+        if toggles.FPSUnlock then
+            setfpscap(v)
+        end
+    end })
+    
     -- Server Tools
     local serverSection = tab:Section({ Title = "Server Tools" })
     serverSection:Button({ Title = "Server Hop", Callback = function() if teleport and teleport.ServerHop then teleport:ServerHop() end end })
@@ -540,6 +676,16 @@ function UI:BuildCommunityTab(tab)
         if setclipboard then
             setclipboard("https://discord.gg/eDbaHKEf7G")
             if notifications then notifications:Show("Success", "Discord link copied to clipboard!", 3) end
+        else
+            if notifications then notifications:Show("Error", "Clipboard not supported!", 2) end
+        end
+    end })
+    
+    local tiktokSection = tab:Section({ Title = "TikTok" })
+    tiktokSection:Button({ Title = "Follow @viunze on TikTok", Callback = function()
+        if setclipboard then
+            setclipboard("https://www.tiktok.com/@viunze")
+            if notifications then notifications:Show("Success", "TikTok link copied to clipboard!", 3) end
         else
             if notifications then notifications:Show("Error", "Clipboard not supported!", 2) end
         end
