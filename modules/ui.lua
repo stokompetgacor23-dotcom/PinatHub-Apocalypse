@@ -92,18 +92,23 @@ function UI:SetupProximityPromptAntiDelay(utils)
         if proximityPromptActive then return end
         proximityPromptActive = true
         
-        local workspace = game:GetService("Workspace")
-        for _, v in ipairs(workspace:GetDescendants()) do
-            if v:IsA("ProximityPrompt") then
-                v.HoldDuration = 0
-            end
-        end
-        
-        proximityPromptAddedConn = workspace.DescendantAdded:Connect(function(v)
-            if proximityPromptActive and v:IsA("ProximityPrompt") then
-                v.HoldDuration = 0
-            end
-        end)
+        for _, prom in next, workspace:GetDescendants() do
+  if prom:IsA("ProximityPrompt") then
+    prom.PromptButtonHoldBegan:Connect(function()
+       if prom.HoldDuration <= 0 then return end
+      fireproximityprompt(prom, 0)
+    end)
+  end
+end
+
+workspace.DescendantAdded:Connect(function(class)
+  if class:IsA("ProximityPrompt") then
+    class.PromptButtonHoldBegan:Connect(function()
+        if class.HoldDuration <= 0 then return end
+      fireproximityprompt(class, 0)
+    end)
+  end
+end)
         
         if utils then utils:AddConnection(proximityPromptAddedConn) end
     end
@@ -786,7 +791,7 @@ function UI:BuildCombatTab(tab)
         toggles.KillAura = v
         if notifications then notifications:Show("Kill Aura", v and "Enabled" or "Disabled", 2) end
     end })
-    killAuraSection:Slider({ Title = "Aura Range", Description = "Jarak serangan Kill Aura (3-25 studs)", Value = { Min = 3, Default = 6, Max = 25 }, Callback = function(v) options.KillAuraRange = v end })
+    killAuraSection:Slider({ Title = "Aura Range", Description = "Kill Aura Range", Value = { Min = 3, Default = 6, Max = 25 }, Callback = function(v) options.KillAuraRange = v end })
     killAuraSection:Dropdown({ Title = "Target Priority", Values = { "Nearest", "Lowest HP", "Highest HP" }, Default = 1, Callback = function(v) options.KillAuraPriority = v end })
     
     -- Auto Hunt Section
