@@ -128,7 +128,7 @@ function UI:Init(modules)
         return nil
     end
     
-    -- Store dependencies
+    -- Store dependencies (support multiple naming conventions)
     self.Config = modules.config or modules.Config
     self.Utils = modules.utils or modules.Utils
     self.ESP = modules.esp or modules.ESP
@@ -139,7 +139,7 @@ function UI:Init(modules)
     self.Notifications = modules.notifications or modules.Notifications
     self.Player = modules.player or modules.Player
     self.AutoPickup = modules.autoPickup or modules.AutoPickup
-    self.KillAura = modules.killaura or modules.KillAura  -- Tambahkan KillAura module
+    self.KillAura = modules.killaura or modules.KillAura
     
     if not self.Config then
         print("ERROR: Config module not found!")
