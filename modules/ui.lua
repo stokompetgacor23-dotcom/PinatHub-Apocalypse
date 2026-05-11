@@ -92,14 +92,12 @@ function UI:SetupProximityPromptAntiDelay()
         if proximityPromptActive then return end
         proximityPromptActive = true
         
-        -- Set all existing ProximityPrompt
         for _, v in ipairs(workspace:GetDescendants()) do
             if v:IsA("ProximityPrompt") then
                 v.HoldDuration = 0
             end
         end
         
-        -- Listen for new ProximityPrompt
         proximityPromptConn = workspace.DescendantAdded:Connect(function(v)
             if proximityPromptActive and v:IsA("ProximityPrompt") then
                 v.HoldDuration = 0
@@ -139,6 +137,7 @@ function UI:Init(modules)
     self.Notifications = modules.notifications or modules.Notifications
     self.Player = modules.player or modules.Player
     self.AutoPickup = modules.autoPickup or modules.AutoPickup
+    -- KillAura: coba kedua kemungkinan nama (killaura atau KillAura)
     self.KillAura = modules.killaura or modules.KillAura
     
     if not self.Config then
@@ -148,6 +147,10 @@ function UI:Init(modules)
     
     if not self.ESP then
         print("WARNING: ESP module not found! ESP features disabled.")
+    end
+    
+    if not self.KillAura then
+        print("WARNING: KillAura module not found! Kill Aura features disabled.")
     end
     
     -- Create Window
@@ -208,6 +211,10 @@ function UI:Init(modules)
     
     self.Window:Open()
     print("UI initialized successfully!")
+    
+    if self.KillAura then
+        print("[UI] KillAura module loaded successfully!")
+    end
     
     -- Auto refresh ESP after UI loads
     task.spawn(function()
@@ -453,14 +460,14 @@ function UI:BuildVisualsTab(tab)
     itemSection:Divider()
     
     local itemCategories = {
-        { key = "Gun", text = "🔫 Gun ESP" },
-        { key = "Melee", text = "⚔️ Melee ESP" },
-        { key = "Medical", text = "💊 Medical ESP" },
-        { key = "Armor", text = "🛡️ Armor ESP" },
-        { key = "Food", text = "🍔 Food ESP" },
-        { key = "Resource", text = "📦 Resources ESP" },
-        { key = "Fuel", text = "⛽ Fuel ESP" },
-        { key = "Ability", text = "✨ Abilities ESP" },
+        { key = "Gun", text = "Gun ESP" },
+        { key = "Melee", text = "Melee ESP" },
+        { key = "Medical", text = "Medical ESP" },
+        { key = "Armor", text = "Armor ESP" },
+        { key = "Food", text = "Food ESP" },
+        { key = "Resource", text = "Resources ESP" },
+        { key = "Fuel", text = "Fuel ESP" },
+        { key = "Ability", text = "Abilities ESP" },
     }
     
     for _, cat in ipairs(itemCategories) do
@@ -607,7 +614,7 @@ end
 -- ============================================
 function UI:BuildCombatTab(tab)
     local config = self.Config
-    local killAura = self.KillAura
+    local killAura = self.KillAura  -- Menggunakan self.KillAura
     local farm = self.Farm
     local notifications = self.Notifications
     
@@ -616,21 +623,27 @@ function UI:BuildCombatTab(tab)
     local options = config:GetOptions()
     local toggles = config:GetToggles()
     
-    -- ========== KILL AURA SECTION (LENGKAP SEPERTI SINGLE FILE) ==========
+    -- ========== KILL AURA SECTION ==========
     local killAuraSection = tab:Section({ Title = "Kill Aura" })
     
+    -- Toggle Kill Aura
     killAuraSection:Toggle({ 
         Title = "Kill Aura", 
         Default = false, 
         Callback = function(v) 
             toggles.KillAura = v
             if v then 
-                if killAura then 
+                if killAura and killAura.Start then 
                     killAura:Start()
-                    if notifications then notifications:Show("Kill Aura", "Enabled", 2) end
+                    if notifications then 
+                        notifications:Show("Kill Aura", "Enabled - Range: " .. (options.KillAuraRange or 6), 2) 
+                    end
+                elseif not killAura then
+                    if notifications then notifications:Show("Kill Aura", "Module not loaded!", 2) end
+                    print("[ERROR] KillAura module not available!")
                 end
             else 
-                if killAura then 
+                if killAura and killAura.Stop then 
                     killAura:Stop()
                     if notifications then notifications:Show("Kill Aura", "Disabled", 2) end
                 end
@@ -638,62 +651,92 @@ function UI:BuildCombatTab(tab)
         end 
     })
     
+    -- Aura Range Slider
     killAuraSection:Slider({ 
         Title = "Aura Range", 
-        Description = "Kill Aura Range", 
+        Description = "Jarak deteksi dan serangan (3-25 studs)", 
         Value = { Min = 3, Default = options.KillAuraRange or 6, Max = 25 }, 
         Callback = function(v) 
             options.KillAuraRange = v
-            if killAura then killAura:SetRange(v) end
+            if killAura and killAura.SetRange then 
+                killAura:SetRange(v) 
+            end
+            if notifications and toggles.KillAura then
+                notifications:Show("Kill Aura Range", v .. " studs", 1)
+            end
         end 
     })
     
+    -- Swing Rate Slider
     killAuraSection:Slider({ 
         Title = "Swing Rate", 
-        Description = "Attack Speed", 
+        Description = "Kecepatan serangan per detik (0.1-2.0)", 
         Value = { Min = 0.1, Default = options.KillAuraSwingRate or 0.5, Max = 2, Decimal = true }, 
         Callback = function(v) 
             options.KillAuraSwingRate = v
-            if killAura then killAura:SetSwingRate(v) end
+            if killAura and killAura.SetSwingRate then 
+                killAura:SetSwingRate(v) 
+            end
         end 
     })
     
+    -- Target Priority Dropdown
     killAuraSection:Dropdown({ 
         Title = "Target Priority", 
         Values = { "Nearest", "Lowest HP", "Highest HP" }, 
         Default = 1, 
         Callback = function(v) 
             options.KillAuraPriority = v
-            if killAura then killAura:SetPriority(v) end
+            if killAura and killAura.SetPriority then 
+                killAura:SetPriority(v) 
+            end
         end 
     })
     
+    -- Auto-Equip Weapon Toggle
     killAuraSection:Toggle({ 
         Title = "Auto-Equip Weapon", 
         Default = options.KillAuraAutoEquip or false, 
         Callback = function(v) 
             options.KillAuraAutoEquip = v
-            if killAura then killAura:SetAutoEquip(v) end
+            if killAura and killAura.SetAutoEquip then 
+                killAura:SetAutoEquip(v) 
+            end
         end 
     })
     
+    -- Show Target Indicator Toggle
     killAuraSection:Toggle({ 
         Title = "Show Target Indicator", 
         Default = options.KillAuraShowIndicator or true, 
         Callback = function(v) 
             options.KillAuraShowIndicator = v
-            if killAura then killAura:SetShowIndicator(v) end
+            if killAura and killAura.SetShowIndicator then 
+                killAura:SetShowIndicator(v) 
+            end
         end 
     })
     
+    -- Extended Range Toggle
     killAuraSection:Toggle({ 
-        Title = "Extended Range", 
+        Title = "Extended Range (+2 studs)", 
         Default = options.KillAuraExtendedRange or true, 
         Callback = function(v) 
             options.KillAuraExtendedRange = v
-            if killAura then killAura:SetExtendedRange(v) end
+            if killAura and killAura.SetExtendedRange then 
+                killAura:SetExtendedRange(v) 
+            end
         end 
     })
+    
+    -- Info Paragraph
+    killAuraSection:Paragraph({ 
+        Title = "Info Kill Aura", 
+        Desc = "Kill Aura akan otomatis menyerang zombie terdekat. Indicator garis merah akan muncul menunjuk ke target yang sedang diserang." 
+    })
+    
+    -- Divider
+    killAuraSection:Divider()
     
     -- ========== AUTO HUNT ZOMBIE SECTION ==========
     local autoHuntSection = tab:Section({ Title = "Auto Hunt Zombie" })
