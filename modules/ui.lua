@@ -388,7 +388,7 @@ function UI:BuildVisualsTab(tab)
     
     -- Item ESP
     local itemSection = tab:Section({ Title = "Item ESP (Dropped Items)" })
-    itemSection:Paragraph({ Title = "Pengaturan Item ESP", Desc = "Aktifkan ESP untuk item yang jatuh di lantai" })
+    itemSection:Paragraph({ Title = "-", Desc = "-" })
     itemSection:Divider()
     itemSection:Toggle({ Title = "All Items Chams", Value = false, Callback = function(value)
         if esp and esp.SetAllItemChams then esp:SetAllItemChams(value) end
@@ -620,7 +620,7 @@ function UI:BuildCombatTab(tab)
     
     killAuraSection:Paragraph({ 
         Title = "Info Kill Aura", 
-        Desc = "Kill Aura akan otomatis menyerang zombie terdekat. Indicator garis merah akan muncul menunjuk ke target yang sedang diserang." 
+        Desc = "=" 
     })
     
     killAuraSection:Divider()
