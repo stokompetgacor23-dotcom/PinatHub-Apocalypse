@@ -1,5 +1,5 @@
 -- =======================================================
--- PINATHUB - UI MODULE (WINDUI JUMANTARA STYLE - GRAY THEME)
+-- PINATHUB - UI MODULE (WINDUI SWING OBBY STYLE)
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -11,7 +11,7 @@ local UI = {}
 UI.GuiVisible = true
 UI.Window = nil
 
--- Load WindUI (Latest Version)
+-- Load WindUI (Latest Version / Swing Obby Style)
 local function loadWindUI()
     local success, result = pcall(function()
         return loadstring(game:HttpGet('https://github.com/Footagesus/WindUI/releases/latest/download/main.lua'))()
@@ -19,92 +19,7 @@ local function loadWindUI()
     return success and result or nil
 end
 
--- Gray Theme (Jumantara Style)
-local GrayTheme = {
-    Name = "JumantaraGray",
-    
-    -- Primary Colors
-    Accent = Color3.fromRGB(100, 100, 100),
-    Dialog = Color3.fromRGB(45, 45, 45),
-    Outline = Color3.fromRGB(80, 80, 80),
-    
-    -- Text Colors
-    Text = Color3.fromRGB(220, 220, 220),
-    Placeholder = Color3.fromRGB(120, 120, 120),
-    
-    -- Backgrounds
-    Background = Color3.fromRGB(25, 25, 25),
-    Button = Color3.fromRGB(70, 70, 70),
-    Icon = Color3.fromRGB(150, 150, 150),
-    
-    -- Interactive Elements
-    Toggle = Color3.fromRGB(100, 100, 100),
-    Slider = Color3.fromRGB(90, 90, 90),
-    Checkbox = Color3.fromRGB(100, 100, 100),
-    
-    -- Panel Elements
-    PanelBackground = Color3.fromRGB(35, 35, 35),
-    PanelBackgroundTransparency = 0.95,
-    
-    -- Window Elements
-    WindowBackground = Color3.fromRGB(28, 28, 28),
-    WindowShadow = Color3.fromRGB(0, 0, 0),
-    
-    -- Tab Elements
-    TabBackground = Color3.fromRGB(40, 40, 40),
-    TabBackgroundHover = Color3.fromRGB(55, 55, 55),
-    TabBackgroundActive = Color3.fromRGB(60, 60, 60),
-    TabText = Color3.fromRGB(200, 200, 200),
-    TabIcon = Color3.fromRGB(170, 170, 170),
-    TabBorder = Color3.fromRGB(90, 90, 90),
-    
-    -- Element Background
-    ElementBackground = Color3.fromRGB(50, 50, 50),
-    ElementBackgroundTransparency = 0,
-    
-    -- Labels
-    LabelBackground = Color3.fromRGB(30, 30, 30),
-    LabelBackgroundTransparency = 0.83,
-    
-    -- Slider Icon
-    SliderIcon = Color3.fromRGB(120, 120, 120),
-    
-    -- Primary Action
-    Primary = Color3.fromRGB(100, 100, 100),
-    
-    -- Checkbox
-    CheckboxBorder = Color3.fromRGB(100, 100, 100),
-    CheckboxBorderTransparency = 0.75,
-    
-    -- Toggle Bar
-    ToggleBar = Color3.fromRGB(60, 60, 60),
-    
-    -- Section Box
-    SectionBoxBorder = Color3.fromRGB(70, 70, 70),
-    SectionBoxBorderTransparency = 0.75,
-    SectionBoxBackground = Color3.fromRGB(35, 35, 35),
-    SectionBoxBackgroundTransparency = 0.95,
-    
-    -- Notification
-    Notification = Color3.fromRGB(35, 35, 35),
-    NotificationTitle = Color3.fromRGB(220, 220, 220),
-    NotificationContent = Color3.fromRGB(180, 180, 180),
-    NotificationBorder = Color3.fromRGB(80, 80, 80),
-    NotificationBorderTransparency = 0.75,
-    
-    -- Tooltip
-    Tooltip = Color3.fromRGB(50, 50, 50),
-    TooltipText = Color3.fromRGB(220, 220, 220),
-    
-    -- Search Bar
-    SearchBarBorder = Color3.fromRGB(80, 80, 80),
-    SearchBarBorderTransparency = 0.75,
-    
-    -- Dropdown
-    DropdownTabBorder = Color3.fromRGB(80, 80, 80),
-}
-
--- Create logo (Jumantara Style)
+-- Create logo (Swing Obby Style - smaller)
 function UI:CreateLogo()
     local player = LocalPlayer
     local UIS = UserInputService
@@ -116,12 +31,11 @@ function UI:CreateLogo()
     
     local logoButton = Instance.new("ImageButton")
     logoButton.Name = "LogoButton"
-    logoButton.Size = UDim2.new(0, 50, 0, 50)
+    logoButton.Size = UDim2.new(0, 50, 0, 50)  -- Smaller
     logoButton.Position = UDim2.new(0.5, -25, 0.5, -25)
     logoButton.BackgroundTransparency = 1
-    -- Menggunakan icon ID yang diminta (7370685224242273706852242422)
     logoButton.Image = "rbxassetid://118264723961739"
-    logoButton.ImageColor3 = Color3.fromRGB(150, 150, 150)
+    logoButton.ImageColor3 = Color3.fromRGB(180, 0, 255)
     logoButton.ScaleType = Enum.ScaleType.Fit
     logoButton.Parent = logoGui
     
@@ -169,7 +83,7 @@ function UI:CreateLogo()
     return logoGui, logoButton
 end
 
--- Setup proximity prompt anti-delay
+-- Setup proximity prompt anti-delay (SAME)
 function UI:SetupProximityPromptAntiDelay()
     local proximityPromptActive = false
     local proximityPromptConn = nil
@@ -203,7 +117,7 @@ function UI:SetupProximityPromptAntiDelay()
 end
 
 -- ============================================
--- INIT FUNCTION (WITH GRAY THEME)
+-- INIT FUNCTION (WITH LATEST WINDUI VERSION)
 -- ============================================
 function UI:Init(modules)
     local WindUI = loadWindUI()
@@ -212,13 +126,7 @@ function UI:Init(modules)
         return nil
     end
     
-    -- Register Gray Theme
-    pcall(function()
-        WindUI:AddTheme(GrayTheme)
-        WindUI:SetTheme("JumantaraGray")
-    end)
-    
-    -- Store dependencies
+    -- Store dependencies (support multiple naming conventions)
     self.Config = modules.config or modules.Config
     self.Utils = modules.utils or modules.Utils
     self.ESP = modules.esp or modules.ESP
@@ -244,19 +152,20 @@ function UI:Init(modules)
         print("WARNING: KillAura module not found! Kill Aura features disabled.")
     end
     
-    -- Create Window with Gray Theme
+    -- Create Window (LATEST VERSION / SWING OBBY STYLE)
     self.Window = WindUI:CreateWindow({
         Title = "PinatHub",
         Author = "@viunze on tiktok",
         Folder = "pinathub",
         Size = UDim2.fromOffset(600, 600),
         Transparent = false,
-        Theme = "JumantaraGray",
+        Theme = "Dark",
         IsOpenButtonEnabled = false,
         User = {Enabled = true, Anonymous = true},
         SideBarWidth = 150,
     })
     
+    -- Optional: Window greeting / tag (if supported)
     if self.Window.SetGreeting then
         self.Window:SetGreeting("PinatHub", "Survive the Apocalypse")
     end
@@ -282,7 +191,7 @@ function UI:Init(modules)
         end
     end)
     
-    -- Create Tabs
+    -- Create Tabs (Use latest version format without IconColor/Border that might not be supported)
     local InfoTab = self.Window:Tab({Title = "Info", Icon = "info"})
     local VisualsTab = self.Window:Tab({Title = "Visuals", Icon = "eye"})
     local PlayerTab = self.Window:Tab({Title = "Player", Icon = "user"})
@@ -291,7 +200,7 @@ function UI:Init(modules)
     local MiscTab = self.Window:Tab({Title = "Misc", Icon = "settings"})
     local CommunityTab = self.Window:Tab({Title = "Community", Icon = "users"})
     
-    -- Build all sections
+    -- Build all sections (SAME LOGIC, only UI elements adjust)
     self:BuildInfoTab(InfoTab)
     self:BuildVisualsTab(VisualsTab)
     self:BuildPlayerTab(PlayerTab)
@@ -301,7 +210,7 @@ function UI:Init(modules)
     self:BuildCommunityTab(CommunityTab)
     
     self.Window:Open()
-    print("UI initialized successfully with Jumantara Gray Theme!")
+    print("UI initialized successfully with WindUI Swing Obby Style!")
     
     if self.KillAura then
         print("[UI] KillAura module loaded successfully!")
@@ -320,7 +229,7 @@ function UI:Init(modules)
 end
 
 -- ============================================
--- INFO TAB
+-- INFO TAB (SAME)
 -- ============================================
 function UI:BuildInfoTab(tab)
     local config = self.Config
@@ -348,7 +257,7 @@ function UI:BuildInfoTab(tab)
 end
 
 -- ============================================
--- VISUALS TAB (ESP)
+-- VISUALS TAB (ESP - ALL FEATURES REMAIN)
 -- ============================================
 function UI:BuildVisualsTab(tab)
     local config = self.Config
@@ -512,7 +421,7 @@ function UI:BuildVisualsTab(tab)
 end
 
 -- ============================================
--- PLAYER TAB
+-- PLAYER TAB (SAME)
 -- ============================================
 function UI:BuildPlayerTab(tab)
     local config = self.Config
@@ -611,7 +520,7 @@ function UI:BuildPlayerTab(tab)
 end
 
 -- ============================================
--- COMBAT TAB (KILL AURA)
+-- COMBAT TAB (COMPLETE KILL AURA)
 -- ============================================
 function UI:BuildCombatTab(tab)
     local config = self.Config
@@ -778,7 +687,7 @@ function UI:BuildCombatTab(tab)
 end
 
 -- ============================================
--- EXPLOITS TAB
+-- EXPLOITS TAB (SAME)
 -- ============================================
 function UI:BuildExploitsTab(tab)
     local config = self.Config
@@ -859,7 +768,7 @@ function UI:BuildExploitsTab(tab)
 end
 
 -- ============================================
--- MISC TAB
+-- MISC TAB (SAME)
 -- ============================================
 function UI:BuildMiscTab(tab)
     local config = self.Config
@@ -937,7 +846,7 @@ function UI:BuildMiscTab(tab)
 end
 
 -- ============================================
--- COMMUNITY TAB
+-- COMMUNITY TAB (SAME)
 -- ============================================
 function UI:BuildCommunityTab(tab)
     local notifications = self.Notifications
