@@ -11,7 +11,7 @@ local UI = {}
 UI.GuiVisible = true
 UI.Window = nil
 
--- Load WindUI (Versi Terbaru / Swing Obby Style)
+-- Load WindUI (Latest Version / Swing Obby Style)
 local function loadWindUI()
     local success, result = pcall(function()
         return loadstring(game:HttpGet('https://github.com/Footagesus/WindUI/releases/latest/download/main.lua'))()
@@ -19,7 +19,7 @@ local function loadWindUI()
     return success and result or nil
 end
 
--- Create logo (Swing Obby Style - lebih kecil)
+-- Create logo (Swing Obby Style - smaller)
 function UI:CreateLogo()
     local player = LocalPlayer
     local UIS = UserInputService
@@ -31,7 +31,7 @@ function UI:CreateLogo()
     
     local logoButton = Instance.new("ImageButton")
     logoButton.Name = "LogoButton"
-    logoButton.Size = UDim2.new(0, 50, 0, 50)  -- Lebih kecil
+    logoButton.Size = UDim2.new(0, 50, 0, 50)  -- Smaller
     logoButton.Position = UDim2.new(0.5, -25, 0.5, -25)
     logoButton.BackgroundTransparency = 1
     logoButton.Image = "rbxassetid://118264723961739"
@@ -117,7 +117,7 @@ function UI:SetupProximityPromptAntiDelay()
 end
 
 -- ============================================
--- INIT FUNCTION (DENGAN WINDUI VERSI TERBARU)
+-- INIT FUNCTION (WITH LATEST WINDUI VERSION)
 -- ============================================
 function UI:Init(modules)
     local WindUI = loadWindUI()
@@ -152,7 +152,7 @@ function UI:Init(modules)
         print("WARNING: KillAura module not found! Kill Aura features disabled.")
     end
     
-    -- Create Window (VERSI TERBARU / SWING OBBY STYLE)
+    -- Create Window (LATEST VERSION / SWING OBBY STYLE)
     self.Window = WindUI:CreateWindow({
         Title = "PinatHub",
         Author = "@viunze on tiktok",
@@ -191,7 +191,7 @@ function UI:Init(modules)
         end
     end)
     
-    -- Create Tabs (Gunakan format versi terbaru tanpa IconColor/Border yang mungkin tidak support)
+    -- Create Tabs (Use latest version format without IconColor/Border that might not be supported)
     local InfoTab = self.Window:Tab({Title = "Info", Icon = "info"})
     local VisualsTab = self.Window:Tab({Title = "Visuals", Icon = "eye"})
     local PlayerTab = self.Window:Tab({Title = "Player", Icon = "user"})
@@ -200,7 +200,7 @@ function UI:Init(modules)
     local MiscTab = self.Window:Tab({Title = "Misc", Icon = "settings"})
     local CommunityTab = self.Window:Tab({Title = "Community", Icon = "users"})
     
-    -- Build all sections (SAME LOGIC, hanya UI elements yang menyesuaikan)
+    -- Build all sections (SAME LOGIC, only UI elements adjust)
     self:BuildInfoTab(InfoTab)
     self:BuildVisualsTab(VisualsTab)
     self:BuildPlayerTab(PlayerTab)
@@ -257,7 +257,7 @@ function UI:BuildInfoTab(tab)
 end
 
 -- ============================================
--- VISUALS TAB (ESP - SEMUA FITUR TETAP)
+-- VISUALS TAB (ESP - ALL FEATURES REMAIN)
 -- ============================================
 function UI:BuildVisualsTab(tab)
     local config = self.Config
@@ -388,7 +388,7 @@ function UI:BuildVisualsTab(tab)
     
     -- Item ESP
     local itemSection = tab:Section({ Title = "Item ESP (Dropped Items)" })
-    itemSection:Paragraph({ Title = "-", Desc = "-" })
+    itemSection:Paragraph({ Title = "Item ESP Settings", Desc = "Enable ESP for items dropped on the ground" })
     itemSection:Divider()
     itemSection:Toggle({ Title = "All Items Chams", Value = false, Callback = function(value)
         if esp and esp.SetAllItemChams then esp:SetAllItemChams(value) end
@@ -520,7 +520,7 @@ function UI:BuildPlayerTab(tab)
 end
 
 -- ============================================
--- COMBAT TAB (KILL AURA LENGKAP)
+-- COMBAT TAB (COMPLETE KILL AURA)
 -- ============================================
 function UI:BuildCombatTab(tab)
     local config = self.Config
@@ -619,8 +619,8 @@ function UI:BuildCombatTab(tab)
     })
     
     killAuraSection:Paragraph({ 
-        Title = "Info Kill Aura", 
-        Desc = "=" 
+        Title = "Kill Aura Info", 
+        Desc = "Kill Aura will automatically attack nearby zombies. A red line indicator will appear pointing to the target being attacked." 
     })
     
     killAuraSection:Divider()
