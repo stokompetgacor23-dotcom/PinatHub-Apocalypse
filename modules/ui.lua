@@ -854,7 +854,7 @@ function UI:BuildCommunityTab(tab)
     local whatsappSection = tab:Section({ Title = "WhatsApp Group" })
     whatsappSection:Button({ Title = "Join WhatsApp Group", Callback = function()
         if setclipboard then
-            setclipboard("https://chat.whatsapp.com/I8hG44FLgrRAwQcS3lvEft")
+            setclipboard("https://chat.whatsapp.com/HEo9aXAzdfe3CQPDhlg2o8")
             if notifications then notifications:Show("Success", "WhatsApp link copied to clipboard!", 3) end
         else
             if notifications then notifications:Show("Error", "Clipboard not supported!", 2) end
