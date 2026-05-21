@@ -194,6 +194,9 @@ Config.SupportedMaps = {
     { name = "The Forge" },
     { name = "Swing Obby For Brainrots" },
     { name = "Attack on Titan Revolution" },
+    { name = "Slime RNG" },
+    { name = "Solo Hunter" },
+    { name = "Oil Empire" },
 }
 
 -- Crate options
