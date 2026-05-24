@@ -1,5 +1,7 @@
 -- =======================================================
--- PINATHUB - UI MODULE (WINDUI SWING OBBY STYLE)
+-- PINATHUB - UI MODULE (WINDUI SWING OBBY BRAINROT STYLE)
+-- =======================================================
+-- ONLY UI STYLE CHANGED, ALL FEATURES REMAIN INTACT
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -11,7 +13,7 @@ local UI = {}
 UI.GuiVisible = true
 UI.Window = nil
 
--- Load WindUI (Latest Version / Swing Obby Style)
+-- Load WindUI (Latest Version / Swing Obby Brainrot Style)
 local function loadWindUI()
     local success, result = pcall(function()
         return loadstring(game:HttpGet('https://github.com/Footagesus/WindUI/releases/latest/download/main.lua'))()
@@ -19,7 +21,7 @@ local function loadWindUI()
     return success and result or nil
 end
 
--- Create logo (Swing Obby Style - smaller)
+-- Create logo (Swing Obby Brainrot Style)
 function UI:CreateLogo()
     local player = LocalPlayer
     local UIS = UserInputService
@@ -31,7 +33,7 @@ function UI:CreateLogo()
     
     local logoButton = Instance.new("ImageButton")
     logoButton.Name = "LogoButton"
-    logoButton.Size = UDim2.new(0, 50, 0, 50)  -- Smaller
+    logoButton.Size = UDim2.new(0, 50, 0, 50)
     logoButton.Position = UDim2.new(0.5, -25, 0.5, -25)
     logoButton.BackgroundTransparency = 1
     logoButton.Image = "rbxassetid://118264723961739"
@@ -117,7 +119,7 @@ function UI:SetupProximityPromptAntiDelay()
 end
 
 -- ============================================
--- INIT FUNCTION (WITH LATEST WINDUI VERSION)
+-- INIT FUNCTION (WITH BRAINROT UI STYLE)
 -- ============================================
 function UI:Init(modules)
     local WindUI = loadWindUI()
@@ -152,16 +154,18 @@ function UI:Init(modules)
         print("WARNING: KillAura module not found! Kill Aura features disabled.")
     end
     
-    -- Create Window (LATEST VERSION / SWING OBBY STYLE)
+    -- Create Window (SWING OBBY BRAINROT STYLE - Only UI style changed)
     self.Window = WindUI:CreateWindow({
         Title = "PinatHub",
         Author = "@viunze on tiktok",
         Folder = "pinathub",
-        Size = UDim2.fromOffset(600, 600),
-        Transparent = false,
+        Size = UDim2.fromOffset(500, 400),     -- More compact brainrot size
+        Transparent = true,                     -- Brainrot transparent style
         Theme = "Dark",
         IsOpenButtonEnabled = false,
         User = {Enabled = true, Anonymous = true},
+        UserEnabled = true,                     -- Brainrot user style
+        HasOutline = true,                      -- Brainrot outline effect
         SideBarWidth = 150,
     })
     
@@ -191,7 +195,7 @@ function UI:Init(modules)
         end
     end)
     
-    -- Create Tabs (Use latest version format without IconColor/Border that might not be supported)
+    -- Create Tabs (Keep all original tabs - NOTHING REMOVED)
     local InfoTab = self.Window:Tab({Title = "Info", Icon = "info"})
     local VisualsTab = self.Window:Tab({Title = "Visuals", Icon = "eye"})
     local PlayerTab = self.Window:Tab({Title = "Player", Icon = "user"})
@@ -200,7 +204,7 @@ function UI:Init(modules)
     local MiscTab = self.Window:Tab({Title = "Misc", Icon = "settings"})
     local CommunityTab = self.Window:Tab({Title = "Community", Icon = "users"})
     
-    -- Build all sections (SAME LOGIC, only UI elements adjust)
+    -- Build all sections (COMPLETELY UNCHANGED - All features preserved)
     self:BuildInfoTab(InfoTab)
     self:BuildVisualsTab(VisualsTab)
     self:BuildPlayerTab(PlayerTab)
@@ -210,7 +214,7 @@ function UI:Init(modules)
     self:BuildCommunityTab(CommunityTab)
     
     self.Window:Open()
-    print("UI initialized successfully with WindUI Swing Obby Style!")
+    print("UI initialized successfully with WindUI Swing Obby Brainrot Style!")
     
     if self.KillAura then
         print("[UI] KillAura module loaded successfully!")
@@ -229,7 +233,7 @@ function UI:Init(modules)
 end
 
 -- ============================================
--- INFO TAB (SAME)
+-- INFO TAB (COMPLETELY UNCHANGED)
 -- ============================================
 function UI:BuildInfoTab(tab)
     local config = self.Config
@@ -257,7 +261,7 @@ function UI:BuildInfoTab(tab)
 end
 
 -- ============================================
--- VISUALS TAB (ESP - ALL FEATURES REMAIN)
+-- VISUALS TAB (COMPLETELY UNCHANGED - ALL ESP FEATURES)
 -- ============================================
 function UI:BuildVisualsTab(tab)
     local config = self.Config
@@ -421,7 +425,7 @@ function UI:BuildVisualsTab(tab)
 end
 
 -- ============================================
--- PLAYER TAB (SAME)
+-- PLAYER TAB (COMPLETELY UNCHANGED)
 -- ============================================
 function UI:BuildPlayerTab(tab)
     local config = self.Config
@@ -520,7 +524,7 @@ function UI:BuildPlayerTab(tab)
 end
 
 -- ============================================
--- COMBAT TAB (COMPLETE KILL AURA)
+-- COMBAT TAB (COMPLETELY UNCHANGED - ALL FEATURES)
 -- ============================================
 function UI:BuildCombatTab(tab)
     local config = self.Config
@@ -687,7 +691,7 @@ function UI:BuildCombatTab(tab)
 end
 
 -- ============================================
--- EXPLOITS TAB (SAME)
+-- EXPLOITS TAB (COMPLETELY UNCHANGED)
 -- ============================================
 function UI:BuildExploitsTab(tab)
     local config = self.Config
@@ -768,7 +772,7 @@ function UI:BuildExploitsTab(tab)
 end
 
 -- ============================================
--- MISC TAB (SAME)
+-- MISC TAB (COMPLETELY UNCHANGED)
 -- ============================================
 function UI:BuildMiscTab(tab)
     local config = self.Config
@@ -846,7 +850,7 @@ function UI:BuildMiscTab(tab)
 end
 
 -- ============================================
--- COMMUNITY TAB (SAME)
+-- COMMUNITY TAB (COMPLETELY UNCHANGED)
 -- ============================================
 function UI:BuildCommunityTab(tab)
     local notifications = self.Notifications
