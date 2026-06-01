@@ -1,5 +1,6 @@
 -- =======================================================
--- PINATHUB - ESP MODULE (UPDATED - SPYMM STRUCTURE)
+-- PINATHUB - ESP MODULE (SPYMM-COMPATIBLE VERSION)
+-- Fully compatible with SPYMM v8.3 structure
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -10,46 +11,106 @@ local LocalPlayer = Players.LocalPlayer
 local ESP = {}
 
 -- ============================================
--- ESP CONFIGURATION (Like SPYMM)
+-- ESP CONFIGURATION (Identical to SPYMM)
 -- ============================================
 local espConfig = {
-    textSize = 10,
-    fillTransparency = 0.4,
+    textSize            = 10,
+    fillTransparency    = 0.4,
     outlineTransparency = 0.0,
-    maxDistance = 500
 }
 
 -- ============================================
--- STATE VARIABLES
+-- FOLDER REFERENCES
+-- ============================================
+local charactersFolder = nil
+local droppedItemsFolder = nil
+local structuresFolder = nil
+
+-- ============================================
+-- STATE VARIABLES (SPYMM Style)
 -- ============================================
 ESP.Connections = {}
 ESP.MobESPInstances = {}
 ESP.PlayerESPInstances = {}
 ESP.StructureESPInstances = {}
 ESP.CrateESPInstances = {}
-ESP.Systems = {}
-
-ESP.Options = {
-    ESPMaxDistance = 500
-}
 
 ESP.MobOptions = { ESP = false, Chams = false, Name = false, Distance = false }
 ESP.PlayerESPVars = { ESP = false, Chams = false, Name = false, Distance = false, Health = false }
 ESP.StructureESPVars = { ESP = false, Chams = false, Name = false, Distance = false }
 ESP.CrateOptions = {
-    ESP = false,
-    Chams = false,
-    Name = false,
-    Distance = false,
+    ESP = false, Chams = false, Name = false, Distance = false,
     MaxDistance = 500,
     ChamsColor = Color3.fromRGB(255, 200, 50),
     OutlineColor = Color3.fromRGB(255, 255, 255)
 }
 
--- Mob names (works with both "Characters" and "Zombies_Local" folders)
--- NOTE: This is kept for backward compatibility but Mob ESP now detects ALL non-player models
-ESP.MobNames = {"Runner", "Crawler", "Riot", "Zombie", "Brute", "Spitter", "Boss"}
+-- ============================================
+-- ITEM CATEGORIES & COLORS (SPYMM Colors)
+-- ============================================
+ESP.EspDefinitions = {
+    {
+        key = "Gun", displayName = "Gun ESP",
+        items = {"AA-12", "AK-47", "Assault Rifle", "Desert Eagle", "Double Barrel",
+            "Flamethrower", "Grenade Launcher", "LMG", "MediGun", "Pistol",
+            "Ray Gun", "Revolver", "Rifle", "Shotgun", "Sniper", "SVD", "Uzi"},
+        colors = { fill = Color3.fromRGB(255, 30, 30), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(255, 120, 120) },
+    },
+    {
+        key = "Melee", displayName = "Melee ESP",
+        items = {"Bat", "Chainsaw", "Crowbar", "Fire Axe", "Hatchet", "Katana", "Knife",
+            "Riot Shield", "Scythe", "Sledgehammer", "Spear", "Spiked Bat"},
+        colors = { fill = Color3.fromRGB(255, 140, 0), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(255, 200, 100) },
+    },
+    {
+        key = "Medical", displayName = "Medical ESP",
+        items = {"Bandage", "Compound H", "Compound I", "Compound R", "Compound S", "Medkit"},
+        colors = { fill = Color3.fromRGB(0, 255, 80), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(150, 255, 150) },
+    },
+    {
+        key = "Armor", displayName = "Armor ESP",
+        items = {"Power Armor", "Light Armor", "Medium Armor", "Heavy Armor"},
+        colors = { fill = Color3.fromRGB(0, 100, 255), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(160, 200, 255) },
+    },
+    {
+        key = "Food", displayName = "Food ESP",
+        items = {"Chips", "Carrot", "Bloxiade", "Beans", "MRE", "Bloxy Cola"},
+        colors = { fill = Color3.fromRGB(190, 255, 0), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(210, 255, 150) },
+    },
+    {
+        key = "Resource", displayName = "Resources ESP",
+        items = {"AC", "Battery", "Battery Pack", "Bucket", "Dumbell", "Exhaust Pipe",
+            "Reactor Component", "Refined Metal", "Satellite Dish", "Scrap",
+            "Screws", "Spatula", "Tray", "TV", "Watch", "Zombie Heart"},
+        colors = { fill = Color3.fromRGB(0, 220, 255), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(180, 240, 255) },
+    },
+    {
+        key = "Fuel", displayName = "Fuel ESP",
+        items = {"Nuclear Fuel", "Refined Fuel", "Fuel"},
+        colors = { fill = Color3.fromRGB(255, 220, 0), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(255, 240, 160) },
+    },
+    {
+        key = "Ability", displayName = "Abilities ESP",
+        items = {"Airstrike", "Attack Order", "Call of the Dead", "Summon Brute", "Summon Zombies", "Taunt", "The Future", "The Past", "The Present"},
+        colors = { fill = Color3.fromRGB(180, 0, 255), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(220, 150, 255) },
+    },
+}
 
+-- Build ESP systems (SPYMM pattern)
+ESP.Systems = {}
+for _, def in ipairs(ESP.EspDefinitions) do
+    ESP.Systems[def.key] = {
+        key = def.key, displayName = def.displayName, colors = def.colors,
+        items = def.items, itemList = {},
+        vars = { ESP = false, Chams = false, Name = false, Distance = false },
+        instances = {}, listenersSetup = false,
+    }
+    for _, name in ipairs(def.items) do
+        ESP.Systems[def.key].itemList[name] = true
+    end
+end
+
+-- Structure names
 ESP.StructureNames = {
     "Ammo Crate", "Barbed Wire", "Bear Trap", "Boost Pad", "Electric Fence",
     "Farm Plot", "Fence", "Floodlight", "Gate", "Landmine", "Map", "Repair Drone",
@@ -57,208 +118,46 @@ ESP.StructureNames = {
 }
 
 -- ============================================
--- ITEM CATEGORIES & COLORS
--- ============================================
-ESP.EspDefinitions = {
-    {
-        key = "Gun",
-        displayName = "Gun ESP",
-        items = {
-            "AA-12", "AK-47", "Assault Rifle", "Desert Eagle", "Double Barrel",
-            "Flamethrower", "Grenade Launcher", "LMG", "MediGun", "Pistol",
-            "Ray Gun", "Revolver", "Rifle", "Shotgun", "Sniper", "SVD", "Uzi"
-        },
-        colors = { fill = Color3.fromRGB(255, 30, 30), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(255, 120, 120) },
-    },
-    {
-        key = "Melee",
-        displayName = "Melee ESP",
-        items = {
-            "Bat", "Chainsaw", "Crowbar", "Fire Axe", "Hatchet", "Katana", "Knife",
-            "Riot Shield", "Scythe", "Sledgehammer", "Spear", "Spiked Bat"
-        },
-        colors = { fill = Color3.fromRGB(255, 140, 0), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(255, 200, 100) },
-    },
-    {
-        key = "Medical",
-        displayName = "Medical ESP",
-        items = {
-            "Bandage", "Compound H", "Compound I", "Compound R", "Compound S", "Medkit"
-        },
-        colors = { fill = Color3.fromRGB(0, 255, 80), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(150, 255, 150) },
-    },
-    {
-        key = "Armor",
-        displayName = "Armor ESP",
-        items = {
-            "Power Armor", "Light Armor", "Medium Armor", "Heavy Armor"
-        },
-        colors = { fill = Color3.fromRGB(0, 100, 255), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(160, 200, 255) },
-    },
-    {
-        key = "Food",
-        displayName = "Food ESP",
-        items = {
-            "Chips", "Carrot", "Bloxiade", "Beans", "MRE", "Bloxy Cola"
-        },
-        colors = { fill = Color3.fromRGB(190, 255, 0), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(210, 255, 150) },
-    },
-    {
-        key = "Resource",
-        displayName = "Resources ESP",
-        items = {
-            "AC", "Battery", "Battery Pack", "Bucket", "Dumbell", "Exhaust Pipe",
-            "Reactor Component", "Refined Metal", "Satellite Dish", "Scrap",
-            "Screws", "Spatula", "Tray", "TV", "Watch", "Zombie Heart"
-        },
-        colors = { fill = Color3.fromRGB(0, 220, 255), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(180, 240, 255) },
-    },
-    {
-        key = "Fuel",
-        displayName = "Fuel ESP",
-        items = { "Nuclear Fuel", "Refined Fuel", "Fuel" },
-        colors = { fill = Color3.fromRGB(255, 220, 0), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(255, 240, 160) },
-    },
-    {
-        key = "Ability",
-        displayName = "Abilities ESP",
-        items = {
-            "Airstrike", "Attack Order", "Call of the Dead",
-            "Summon Brute", "Summon Zombies", "Taunt",
-            "The Future", "The Past", "The Present"
-        },
-        colors = { fill = Color3.fromRGB(180, 0, 255), outline = Color3.fromRGB(255, 255, 255), text = Color3.fromRGB(220, 150, 255) },
-    },
-}
-
--- Build ESP systems
-for _, def in ipairs(ESP.EspDefinitions) do
-    ESP.Systems[def.key] = {
-        key = def.key,
-        displayName = def.displayName,
-        colors = def.colors,
-        items = def.items,
-        itemList = {},
-        vars = { ESP = false, Chams = false, Name = false, Distance = false },
-        instances = {},
-        listenersSetup = false,
-    }
-    for _, name in ipairs(def.items) do
-        ESP.Systems[def.key].itemList[name] = true
-    end
-end
-
--- Folder references
-ESP.CharactersFolder = nil
-ESP.DroppedItemsFolder = nil
-ESP.StructuresFolder = nil
-
--- ============================================
--- FIX 1: IMPROVED getItemMainPart
--- Supports: Model, Tool, BasePart, MeshPart, UnionOperation, nested structures
+-- UTILITY FUNCTIONS (SPYMM Style)
 -- ============================================
 local function getItemMainPart(item)
-    -- If item is itself a BasePart
-    if item:IsA("BasePart") then
-        return item
+    if item:IsA("BasePart") then return item end
+    if item.PrimaryPart then return item.PrimaryPart end
+    for _, child in ipairs(item:GetChildren()) do
+        if child:IsA("BasePart") then return child end
+        local found = getItemMainPart(child)
+        if found then return found end
     end
-    
-    -- Check PrimaryPart (fastest)
-    if item.PrimaryPart and item.PrimaryPart:IsA("BasePart") then
-        return item.PrimaryPart
-    end
-    
-    -- Recursively search for first BasePart in descendants
-    local function findBasePart(instance)
-        for _, child in ipairs(instance:GetChildren()) do
-            if child:IsA("BasePart") then
-                return child
-            end
-            local found = findBasePart(child)
-            if found then return found end
-        end
-        return nil
-    end
-    
-    return findBasePart(item)
+    return nil
 end
 
--- ============================================
--- FIX 2: FLEXIBLE ITEM NAME MATCHER
--- Supports: Battery(Clone), Scrap_01, Fuel (1), Watch_01, etc.
--- ============================================
 local function matchesItemName(itemName, targetName)
-    -- Exact match (fastest)
-    if itemName == targetName then
-        return true
-    end
-    
-    -- Normalize function removes suffixes like (Clone), _01, (1), etc.
+    if itemName == targetName then return true end
     local function normalize(name)
-        local normalized = name
-        -- Remove (Clone), (1), (2), (3) etc.
-        normalized = normalized:gsub("%s*%([^)]+%)", "")
-        -- Remove _01, _02, _03, _1, _2 etc.
-        normalized = normalized:gsub("_%d+$", "")
-        normalized = normalized:gsub("_%d+", "")
-        -- Remove trailing numbers with space (e.g., "Fuel 1" -> "Fuel")
-        normalized = normalized:gsub("%s+%d+$", "")
-        -- Remove common suffixes
-        normalized = normalized:gsub("Drop$", "")
-        normalized = normalized:gsub("Dropped$", "")
-        normalized = normalized:gsub("Clone$", "")
-        -- Trim whitespace
-        normalized = normalized:gsub("^%s+", ""):gsub("%s+$", "")
-        return normalized:lower()
+        local n = name:gsub("%s*%([^)]+%)", ""):gsub("_%d+$", ""):gsub("_%d+", ""):gsub("%s+%d+$", ""):gsub("Drop$", ""):gsub("Dropped$", ""):gsub("Clone$", "")
+        return n:gsub("^%s+", ""):gsub("%s+$", ""):lower()
     end
-    
-    local normalizedItem = normalize(itemName)
-    local normalizedTarget = normalize(targetName)
-    
-    -- Direct normalized match
-    if normalizedItem == normalizedTarget then
-        return true
-    end
-    
-    -- Check if item contains target name as substring (e.g., "Large Battery" contains "Battery")
-    if normalizedItem:find(normalizedTarget, 1, true) then
-        return true
-    end
-    
-    -- Check if target contains item name (e.g., "Battery" in "BatteryPack")
-    if normalizedTarget:find(normalizedItem, 1, true) then
-        return true
-    end
-    
+    local normItem = normalize(itemName)
+    local normTarget = normalize(targetName)
+    if normItem == normTarget then return true end
+    if normItem:find(normTarget, 1, true) then return true end
+    if normTarget:find(normItem, 1, true) then return true end
     return false
 end
 
--- Helper to check if an item belongs to a category using flexible matching
-local function itemMatchesCategory(item, sys)
-    local itemName = item.Name
-    for targetName, _ in pairs(sys.itemList) do
-        if matchesItemName(itemName, targetName) then
-            return true
-        end
-    end
-    return false
-end
-
--- ============================================
--- FIX 3: RECURSIVE ITEM SCANNER
--- Supports items inside nested folders
--- ============================================
 local function scanItemsRecursive(container, sys, callback, depth)
     depth = depth or 0
-    if depth > 3 then return end  -- Limit recursion depth to prevent performance issues
-    
+    if depth > 3 then return end
     for _, child in ipairs(container:GetChildren()) do
-        -- Check if this item matches our category
-        if itemMatchesCategory(child, sys) then
+        if matchesItemName(child.Name, sys.key) or sys.itemList[child.Name] then
             callback(child)
         end
-        
-        -- Recurse into containers (Folders and Models)
+        for targetName in pairs(sys.itemList) do
+            if matchesItemName(child.Name, targetName) then
+                callback(child)
+                break
+            end
+        end
         if child:IsA("Folder") or child:IsA("Model") then
             scanItemsRecursive(child, sys, callback, depth + 1)
         end
@@ -279,21 +178,17 @@ local function getHealthColor(pct)
 end
 
 local function discoverFolders()
-    ESP.CharactersFolder = Workspace:FindFirstChild("Characters") or Workspace:FindFirstChild("Zombies_Local")
-    ESP.DroppedItemsFolder = Workspace:FindFirstChild("DroppedItems")
-    ESP.StructuresFolder = Workspace:FindFirstChild("Structures")
-        or Workspace:FindFirstChild("PlayerStructures")
-        or Workspace:FindFirstChild("Buildings")
+    charactersFolder = Workspace:FindFirstChild("Characters") or Workspace:FindFirstChild("Zombies_Local")
+    droppedItemsFolder = Workspace:FindFirstChild("DroppedItems")
+    structuresFolder = Workspace:FindFirstChild("Structures") or Workspace:FindFirstChild("PlayerStructures") or Workspace:FindFirstChild("Buildings")
 end
-discoverFolders()
 
 -- ============================================
--- APPLY CONFIG HELPERS (Like SPYMM)
+-- APPLY CONFIG HELPERS (SPYMM Style)
 -- ============================================
 local function applyESPTextSize(size)
     espConfig.textSize = size
     local small = math.max(size - 2, 8)
-    
     for _, sys in pairs(ESP.Systems) do
         for _, esp in pairs(sys.instances) do
             if esp.NameLabel then esp.NameLabel.TextSize = size end
@@ -319,32 +214,30 @@ end
 local function applyESPTransparency()
     local fillT = espConfig.fillTransparency
     local outlineT = espConfig.outlineTransparency
-    
-    local function updateHighlight(esp)
+    local function updateH(esp)
         if esp and esp.Highlight and esp.Highlight.Parent then
             esp.Highlight.FillTransparency = fillT
             esp.Highlight.OutlineTransparency = outlineT
         end
     end
-    
     for _, sys in pairs(ESP.Systems) do
-        for _, esp in pairs(sys.instances) do updateHighlight(esp) end
+        for _, esp in pairs(sys.instances) do updateH(esp) end
     end
-    for _, esp in pairs(ESP.MobESPInstances) do updateHighlight(esp) end
-    for _, esp in pairs(ESP.StructureESPInstances) do updateHighlight(esp) end
-    for _, esp in pairs(ESP.PlayerESPInstances) do updateHighlight(esp) end
-    for _, esp in pairs(ESP.CrateESPInstances) do updateHighlight(esp) end
+    for _, esp in pairs(ESP.MobESPInstances) do updateH(esp) end
+    for _, esp in pairs(ESP.StructureESPInstances) do updateH(esp) end
+    for _, esp in pairs(ESP.PlayerESPInstances) do updateH(esp) end
+    for _, esp in pairs(ESP.CrateESPInstances) do updateH(esp) end
 end
 
 -- ============================================
--- MOB ESP (Heartbeat based - Like SPYMM)
+-- MOB ESP (SPYMM Style - NO WHITELIST)
 -- ============================================
 function ESP:RemoveMobESP(char)
     local esp = self.MobESPInstances[char]
     if esp then
         if esp.Highlight then esp.Highlight:Destroy() end
         if esp.Billboard then esp.Billboard:Destroy() end
-        if esp.Connection then esp.Connection:Disconnect() end
+        if esp.DistanceConnection then esp.DistanceConnection:Disconnect() end
         self.MobESPInstances[char] = nil
     end
 end
@@ -393,7 +286,6 @@ function ESP:CreateMobESP(char)
         nameLabel.Text = char.Name
         nameLabel.TextColor3 = mobColors.outline
         nameLabel.TextStrokeTransparency = 0.2
-        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         nameLabel.Font = Enum.Font.GothamBold
         nameLabel.TextSize = espConfig.textSize
         nameLabel.Visible = self.MobOptions.Name
@@ -405,8 +297,6 @@ function ESP:CreateMobESP(char)
         distLabel.BackgroundTransparency = 1
         distLabel.Text = "0m"
         distLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-        distLabel.TextStrokeTransparency = 0.2
-        distLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         distLabel.Font = Enum.Font.GothamBold
         distLabel.TextSize = math.max(espConfig.textSize - 2, 8)
         distLabel.Visible = self.MobOptions.Distance
@@ -417,22 +307,21 @@ function ESP:CreateMobESP(char)
         espTable.DistLabel = distLabel
     end
 
-    -- Heartbeat connection (like SPYMM)
+    -- SPYMM-style always-on connection
     local connection
     connection = RunService.Heartbeat:Connect(function()
         if not char or not char.Parent then
             connection:Disconnect()
             return
         end
-        
         local myChar = LocalPlayer.Character
         local myRoot = myChar and (myChar:FindFirstChild("HumanoidRootPart") or myChar:FindFirstChild("Torso"))
         if not myRoot then return end
         
         local dist = (myRoot.Position - root.Position).Magnitude
-        local visible = dist <= self.Options.ESPMaxDistance
-        
-        -- Auto-restore highlight if destroyed
+        local maxDist = self.Options and self.Options.ESPMaxDistance or 500
+        local visible = dist <= maxDist
+
         if self.MobOptions.Chams and (not espTable.Highlight or not espTable.Highlight.Parent) then
             local h = Instance.new("Highlight")
             h.Name = "MobESP_Highlight"
@@ -447,7 +336,7 @@ function ESP:CreateMobESP(char)
         elseif espTable.Highlight and espTable.Highlight.Parent then
             espTable.Highlight.Enabled = visible
         end
-        
+
         if billboard and billboard.Parent then
             billboard.Enabled = visible
             if nameLabel and self.MobOptions.Name then
@@ -462,29 +351,26 @@ function ESP:CreateMobESP(char)
             end
         end
     end)
-    espTable.Connection = connection
+    espTable.DistanceConnection = connection
     table.insert(self.Connections, connection)
 
     self.MobESPInstances[char] = espTable
 end
 
--- FIX 4: REMOVED HARDCODED MOB NAME FILTER
--- Now detects ALL non-player models in the mob folder
+-- FIX: Detect ALL non-player models (NO hardcoded whitelist)
 function ESP:RefreshMobESP()
     for char, _ in pairs(self.MobESPInstances) do
         self:RemoveMobESP(char)
     end
     if not self.MobOptions.ESP then return end
-    if not self.CharactersFolder then return end
+    if not charactersFolder then return end
     
-    -- Build player character set to exclude real players
     local playerCharSet = {}
     for _, p in ipairs(Players:GetPlayers()) do
         if p.Character then playerCharSet[p.Character] = true end
     end
     
-    -- Detect EVERY non-player model (removed hardcoded name whitelist)
-    for _, child in ipairs(self.CharactersFolder:GetChildren()) do
+    for _, child in ipairs(charactersFolder:GetChildren()) do
         if child:IsA("Model") and not playerCharSet[child] then
             self:CreateMobESP(child)
         end
@@ -492,14 +378,14 @@ function ESP:RefreshMobESP()
 end
 
 -- ============================================
--- PLAYER ESP (UNCHANGED)
+-- PLAYER ESP (SPYMM Style)
 -- ============================================
 function ESP:RemovePlayerESP(player)
     local esp = self.PlayerESPInstances[player]
     if esp then
         if esp.Highlight then esp.Highlight:Destroy() end
         if esp.Billboard then esp.Billboard:Destroy() end
-        if esp.Connection then esp.Connection:Disconnect() end
+        if esp.DistanceConnection then esp.DistanceConnection:Disconnect() end
         if esp.CharAddedConn then esp.CharAddedConn:Disconnect() end
         self.PlayerESPInstances[player] = nil
     end
@@ -548,10 +434,8 @@ function ESP:CreatePlayerESP(player)
         nameLabel.Size = UDim2.new(1, 0, 0.3, 0)
         nameLabel.Position = UDim2.new(0, 0, 0, 0)
         nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = player.Name
+        nameLabel.Text = player.DisplayName .. " (@" .. player.Name .. ")"
         nameLabel.TextColor3 = Color3.fromRGB(150, 200, 255)
-        nameLabel.TextStrokeTransparency = 0.2
-        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         nameLabel.Font = Enum.Font.GothamBold
         nameLabel.TextSize = espConfig.textSize
         nameLabel.Visible = self.PlayerESPVars.Name
@@ -563,8 +447,6 @@ function ESP:CreatePlayerESP(player)
         toolLabel.BackgroundTransparency = 1
         toolLabel.Text = ""
         toolLabel.TextColor3 = Color3.fromRGB(180, 180, 255)
-        toolLabel.TextStrokeTransparency = 0.2
-        toolLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         toolLabel.Font = Enum.Font.Gotham
         toolLabel.TextSize = math.max(espConfig.textSize - 2, 8)
         toolLabel.Visible = self.PlayerESPVars.Name
@@ -576,8 +458,6 @@ function ESP:CreatePlayerESP(player)
         healthLabel.BackgroundTransparency = 1
         healthLabel.Text = "100 HP"
         healthLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
-        healthLabel.TextStrokeTransparency = 0.2
-        healthLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         healthLabel.Font = Enum.Font.GothamBold
         healthLabel.TextSize = math.max(espConfig.textSize - 2, 8)
         healthLabel.Visible = self.PlayerESPVars.Health
@@ -589,8 +469,6 @@ function ESP:CreatePlayerESP(player)
         distLabel.BackgroundTransparency = 1
         distLabel.Text = "0m"
         distLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-        distLabel.TextStrokeTransparency = 0.2
-        distLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         distLabel.Font = Enum.Font.GothamBold
         distLabel.TextSize = math.max(espConfig.textSize - 2, 8)
         distLabel.Visible = self.PlayerESPVars.Distance
@@ -619,7 +497,8 @@ function ESP:CreatePlayerESP(player)
         if not myRoot then return end
         
         local dist = (myRoot.Position - r.Position).Magnitude
-        local visible = dist <= self.Options.ESPMaxDistance
+        local maxDist = self.Options and self.Options.ESPMaxDistance or 500
+        local visible = dist <= maxDist
 
         if self.PlayerESPVars.Chams and (not espTable.Highlight or not espTable.Highlight.Parent) then
             local h = Instance.new("Highlight")
@@ -655,7 +534,7 @@ function ESP:CreatePlayerESP(player)
             end
         end
     end)
-    espTable.Connection = connection
+    espTable.DistanceConnection = connection
     table.insert(self.Connections, connection)
 
     local charAddedConn = player.CharacterAdded:Connect(function()
@@ -695,14 +574,14 @@ function ESP:RefreshPlayerESP()
 end
 
 -- ============================================
--- STRUCTURE ESP (UNCHANGED)
+-- STRUCTURE ESP (SPYMM Style with DescendantAdded)
 -- ============================================
 function ESP:RemoveStructureESP(structure)
     local esp = self.StructureESPInstances[structure]
     if esp then
         if esp.Highlight then esp.Highlight:Destroy() end
         if esp.Billboard then esp.Billboard:Destroy() end
-        if esp.Connection then esp.Connection:Disconnect() end
+        if esp.DistanceConnection then esp.DistanceConnection:Disconnect() end
         self.StructureESPInstances[structure] = nil
     end
 end
@@ -711,7 +590,7 @@ function ESP:CreateStructureESP(structure)
     if not structure:IsA("Model") then return end
     if self.StructureESPInstances[structure] then return end
 
-    local mainPart = structure.PrimaryPart or getItemMainPart(structure)
+    local mainPart = getItemMainPart(structure)
     if not mainPart then return end
 
     local espTable = { MainPart = mainPart }
@@ -749,8 +628,6 @@ function ESP:CreateStructureESP(structure)
         nameLabel.BackgroundTransparency = 1
         nameLabel.Text = "[STRUCTURE] " .. structure.Name
         nameLabel.TextColor3 = Color3.fromRGB(0, 255, 200)
-        nameLabel.TextStrokeTransparency = 0.2
-        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         nameLabel.Font = Enum.Font.GothamBold
         nameLabel.TextSize = espConfig.textSize
         nameLabel.Visible = self.StructureESPVars.Name
@@ -762,8 +639,6 @@ function ESP:CreateStructureESP(structure)
         distLabel.BackgroundTransparency = 1
         distLabel.Text = "0m"
         distLabel.TextColor3 = Color3.fromRGB(200, 220, 220)
-        distLabel.TextStrokeTransparency = 0.2
-        distLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         distLabel.Font = Enum.Font.GothamBold
         distLabel.TextSize = math.max(espConfig.textSize - 2, 8)
         distLabel.Visible = self.StructureESPVars.Distance
@@ -785,7 +660,8 @@ function ESP:CreateStructureESP(structure)
         if not myRoot then return end
         
         local dist = (myRoot.Position - mainPart.Position).Magnitude
-        local visible = dist <= self.Options.ESPMaxDistance
+        local maxDist = self.Options and self.Options.ESPMaxDistance or 500
+        local visible = dist <= maxDist
 
         if self.StructureESPVars.Chams and (not espTable.Highlight or not espTable.Highlight.Parent) then
             local h = Instance.new("Highlight")
@@ -810,7 +686,7 @@ function ESP:CreateStructureESP(structure)
             end
         end
     end)
-    espTable.Connection = connection
+    espTable.DistanceConnection = connection
     table.insert(self.Connections, connection)
 
     self.StructureESPInstances[structure] = espTable
@@ -821,61 +697,47 @@ function ESP:RefreshStructureESP()
         self:RemoveStructureESP(structure)
     end
     if not self.StructureESPVars.ESP then return end
-    if not self.StructuresFolder then return end
-    for _, child in ipairs(self.StructuresFolder:GetChildren()) do
-        if table.find(self.StructureNames, child.Name) then
+    if not structuresFolder then return end
+    
+    -- Use Descendants for nested structures (SPYMM style)
+    for _, child in ipairs(structuresFolder:GetDescendants()) do
+        if child:IsA("Model") and table.find(self.StructureNames, child.Name) then
             self:CreateStructureESP(child)
         end
     end
 end
 
 -- ============================================
--- FIX 5: ITEM ESP - UPDATED WITH:
--- - Support for BasePart, MeshPart, UnionOperation, Tool, Folder items
--- - Recursive scanning for nested items
--- - Flexible name matching
+-- ITEM ESP - Category Factory (SPYMM Pattern)
 -- ============================================
 function ESP:CreateCategoryESP(sys, item)
-    -- FIX: Accept multiple instance types, not just Models
-    local isValid = false
-    local targetInstance = item
-    
-    if item:IsA("Model") then
-        isValid = true
-    elseif item:IsA("BasePart") or item:IsA("MeshPart") or item:IsA("UnionOperation") then
-        isValid = true
-        -- For single parts, we'll use the part itself
-        targetInstance = item
-    elseif item:IsA("Tool") then
-        isValid = true
-    elseif item:IsA("Folder") then
-        -- Check if folder contains any BasePart (likely an item container)
-        for _, child in ipairs(item:GetChildren()) do
-            if child:IsA("BasePart") then
-                isValid = true
-                targetInstance = item
+    if not sys.itemList[item.Name] then
+        local found = false
+        for targetName in pairs(sys.itemList) do
+            if matchesItemName(item.Name, targetName) then
+                found = true
                 break
             end
         end
+        if not found then return end
     end
     
-    if not isValid then return end
-    if sys.instances[targetInstance] then return end
+    if sys.instances[item] then return end
     
-    local mainPart = getItemMainPart(targetInstance)
+    local mainPart = getItemMainPart(item)
     if not mainPart then return end
 
-    local espTable = { MainPart = mainPart, TargetInstance = targetInstance }
+    local espTable = { MainPart = mainPart }
 
     if sys.vars.Chams then
         local highlight = Instance.new("Highlight")
         highlight.Name = sys.key .. "_ESP"
-        highlight.Adornee = targetInstance
+        highlight.Adornee = item
         highlight.FillColor = sys.colors.fill
         highlight.FillTransparency = espConfig.fillTransparency
         highlight.OutlineColor = sys.colors.outline
         highlight.OutlineTransparency = espConfig.outlineTransparency
-        highlight.Parent = targetInstance
+        highlight.Parent = item
         espTable.Highlight = highlight
     end
 
@@ -887,15 +749,14 @@ function ESP:CreateCategoryESP(sys, item)
         billboard.Size = UDim2.new(0, 220, 0, 50)
         billboard.StudsOffset = Vector3.new(0, 2, 0)
         billboard.AlwaysOnTop = true
-        billboard.Parent = targetInstance
+        billboard.Parent = item
 
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1, 0, 1, 0)
         frame.BackgroundTransparency = 1
         frame.Parent = billboard
 
-        -- Clean up display name (remove suffixes like (Clone))
-        local displayName = targetInstance.Name:gsub("%s*%([^)]+%)", ""):gsub("_%d+$", "")
+        local displayName = item.Name:gsub("%s*%([^)]+%)", ""):gsub("_%d+$", "")
         
         nameLabel = Instance.new("TextLabel")
         nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
@@ -903,8 +764,6 @@ function ESP:CreateCategoryESP(sys, item)
         nameLabel.BackgroundTransparency = 1
         nameLabel.Text = "[" .. sys.key .. "] " .. displayName
         nameLabel.TextColor3 = sys.colors.text
-        nameLabel.TextStrokeTransparency = 0.2
-        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         nameLabel.Font = Enum.Font.GothamBold
         nameLabel.TextSize = espConfig.textSize
         nameLabel.Visible = sys.vars.Name
@@ -916,8 +775,6 @@ function ESP:CreateCategoryESP(sys, item)
         distLabel.BackgroundTransparency = 1
         distLabel.Text = "0m"
         distLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-        distLabel.TextStrokeTransparency = 0.2
-        distLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         distLabel.Font = Enum.Font.GothamBold
         distLabel.TextSize = math.max(espConfig.textSize - 2, 8)
         distLabel.Visible = sys.vars.Distance
@@ -930,37 +787,28 @@ function ESP:CreateCategoryESP(sys, item)
 
     local connection
     connection = RunService.Heartbeat:Connect(function()
-        if not targetInstance or not targetInstance.Parent then
+        if not item or not item.Parent then
             connection:Disconnect()
             return
         end
-        
-        -- Update mainPart reference in case it changed
-        local currentMainPart = getItemMainPart(targetInstance)
-        if currentMainPart then
-            espTable.MainPart = currentMainPart
-            if billboard and billboard.Parent then
-                billboard.Adornee = currentMainPart
-            end
-        end
-        
         local myChar = LocalPlayer.Character
         local myRoot = myChar and (myChar:FindFirstChild("HumanoidRootPart") or myChar:FindFirstChild("Torso"))
         if not myRoot or not espTable.MainPart then return end
         
         local dist = (myRoot.Position - espTable.MainPart.Position).Magnitude
-        local visible = dist <= self.Options.ESPMaxDistance
+        local maxDist = self.Options and self.Options.ESPMaxDistance or 500
+        local visible = dist <= maxDist
 
         if sys.vars.Chams and (not espTable.Highlight or not espTable.Highlight.Parent) then
             local h = Instance.new("Highlight")
             h.Name = sys.key .. "_ESP"
-            h.Adornee = targetInstance
+            h.Adornee = item
             h.FillColor = sys.colors.fill
             h.FillTransparency = espConfig.fillTransparency
             h.OutlineColor = sys.colors.outline
             h.OutlineTransparency = espConfig.outlineTransparency
             h.Enabled = visible
-            h.Parent = targetInstance
+            h.Parent = item
             espTable.Highlight = h
         elseif espTable.Highlight and espTable.Highlight.Parent then
             espTable.Highlight.Enabled = visible
@@ -974,10 +822,10 @@ function ESP:CreateCategoryESP(sys, item)
             end
         end
     end)
-    espTable.Connection = connection
+    espTable.DistanceConnection = connection
     table.insert(self.Connections, connection)
 
-    sys.instances[targetInstance] = espTable
+    sys.instances[item] = espTable
 end
 
 function ESP:RemoveCategoryESP(sys, item)
@@ -985,51 +833,48 @@ function ESP:RemoveCategoryESP(sys, item)
     if esp then
         if esp.Highlight then esp.Highlight:Destroy() end
         if esp.Billboard then esp.Billboard:Destroy() end
-        if esp.Connection then esp.Connection:Disconnect() end
+        if esp.DistanceConnection then esp.DistanceConnection:Disconnect() end
         sys.instances[item] = nil
     end
 end
 
--- FIX: Updated to use recursive scanning and flexible matching
 function ESP:RefreshCategoryESP(sys)
     for item, _ in pairs(sys.instances) do
         self:RemoveCategoryESP(sys, item)
     end
     if not sys.vars.ESP then return end
-    if not self.DroppedItemsFolder then return end
+    if not droppedItemsFolder then return end
     
-    -- Use recursive scanner to find items in nested folders
-    scanItemsRecursive(self.DroppedItemsFolder, sys, function(item)
+    scanItemsRecursive(droppedItemsFolder, sys, function(item)
         task.wait(0.02)
         self:CreateCategoryESP(sys, item)
     end)
 end
 
--- FIX: Updated listener to use flexible matching and recursive scanning
 function ESP:SetupCategoryListeners(sys)
-    if not self.DroppedItemsFolder or sys.listenersSetup then return end
+    if not droppedItemsFolder or sys.listenersSetup then return end
     sys.listenersSetup = true
     
-    local addedConn = self.DroppedItemsFolder.ChildAdded:Connect(function(child)
+    local addedConn = droppedItemsFolder.ChildAdded:Connect(function(child)
         if not sys.vars.ESP then return end
-        
-        -- Check if the added child matches this category
-        if itemMatchesCategory(child, sys) then
+        if matchesItemName(child.Name, sys.key) or sys.itemList[child.Name] then
             task.wait(0.1)
             self:CreateCategoryESP(sys, child)
         end
-        
-        -- Also check children of the added child (for nested items)
-        task.wait(0.05)
+        for targetName in pairs(sys.itemList) do
+            if matchesItemName(child.Name, targetName) then
+                self:CreateCategoryESP(sys, child)
+                break
+            end
+        end
         scanItemsRecursive(child, sys, function(nestedItem)
             self:CreateCategoryESP(sys, nestedItem)
         end)
     end)
     table.insert(self.Connections, addedConn)
     
-    local removedConn = self.DroppedItemsFolder.ChildRemoved:Connect(function(child)
+    local removedConn = droppedItemsFolder.ChildRemoved:Connect(function(child)
         self:RemoveCategoryESP(sys, child)
-        -- Also clean up any nested instances
         for item, _ in pairs(sys.instances) do
             if item:IsDescendantOf(child) then
                 self:RemoveCategoryESP(sys, item)
@@ -1040,7 +885,7 @@ function ESP:SetupCategoryListeners(sys)
 end
 
 -- ============================================
--- CRATES ESP (UNCHANGED)
+-- CRATES ESP (Keep as is, good feature)
 -- ============================================
 function ESP:FindAllCrates()
     local crates = {}
@@ -1069,7 +914,7 @@ function ESP:RemoveCrateESP(crate)
     if esp then
         if esp.Highlight then esp.Highlight:Destroy() end
         if esp.Billboard then esp.Billboard:Destroy() end
-        if esp.Connection then esp.Connection:Disconnect() end
+        if esp.DistanceConnection then esp.DistanceConnection:Disconnect() end
         self.CrateESPInstances[crate] = nil
     end
 end
@@ -1116,8 +961,6 @@ function ESP:CreateCrateESP(crate)
         nameLabel.BackgroundTransparency = 1
         nameLabel.Text = "📦 CRATE"
         nameLabel.TextColor3 = self.CrateOptions.ChamsColor
-        nameLabel.TextStrokeTransparency = 0.2
-        nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         nameLabel.Font = Enum.Font.GothamBold
         nameLabel.TextSize = espConfig.textSize
         nameLabel.Visible = self.CrateOptions.Name
@@ -1129,8 +972,6 @@ function ESP:CreateCrateESP(crate)
         distLabel.BackgroundTransparency = 1
         distLabel.Text = "0m"
         distLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-        distLabel.TextStrokeTransparency = 0.2
-        distLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
         distLabel.Font = Enum.Font.GothamBold
         distLabel.TextSize = math.max(espConfig.textSize - 2, 8)
         distLabel.Visible = self.CrateOptions.Distance
@@ -1177,7 +1018,7 @@ function ESP:CreateCrateESP(crate)
             end
         end
     end)
-    espTable.Connection = connection
+    espTable.DistanceConnection = connection
     table.insert(self.Connections, connection)
     
     self.CrateESPInstances[crate] = espTable
@@ -1199,15 +1040,15 @@ function ESP:SetupCrateListeners()
     if not mapFolder then return end
     local cratesFolder = mapFolder:FindFirstChild("Crates")
     if not cratesFolder then return end
+    
     local childAddedConn = cratesFolder.ChildAdded:Connect(function(child)
-        if child.Name == "Default" and child:IsA("Model") then
-            if self.CrateOptions.ESP then
-                task.wait(0.1)
-                self:CreateCrateESP(child)
-            end
+        if child.Name == "Default" and child:IsA("Model") and self.CrateOptions.ESP then
+            task.wait(0.1)
+            self:CreateCrateESP(child)
         end
     end)
     table.insert(self.Connections, childAddedConn)
+    
     local childRemovedConn = cratesFolder.ChildRemoved:Connect(function(child)
         if child.Name == "Default" and child:IsA("Model") then
             self:RemoveCrateESP(child)
@@ -1217,21 +1058,17 @@ function ESP:SetupCrateListeners()
 end
 
 -- ============================================
--- LISTENERS (UPDATED FOR FLEXIBLE MOB DETECTION)
+-- LISTENERS SETUP (SPYMM Style)
 -- ============================================
 function ESP:SetupMobListeners()
-    if not self.CharactersFolder or self.MobListenersSetup then return end
+    if not charactersFolder or self.MobListenersSetup then return end
     self.MobListenersSetup = true
     
-    local childAddedConn = self.CharactersFolder.ChildAdded:Connect(function(child)
+    local childAddedConn = charactersFolder.ChildAdded:Connect(function(child)
         if self.MobOptions.ESP and child:IsA("Model") then
-            -- Exclude player characters
             local isPlayer = false
             for _, p in ipairs(Players:GetPlayers()) do
-                if p.Character == child then
-                    isPlayer = true
-                    break
-                end
+                if p.Character == child then isPlayer = true; break end
             end
             if not isPlayer then
                 task.wait(0.2)
@@ -1241,32 +1078,33 @@ function ESP:SetupMobListeners()
     end)
     table.insert(self.Connections, childAddedConn)
 
-    local childRemovedConn = self.CharactersFolder.ChildRemoved:Connect(function(child)
+    local childRemovedConn = charactersFolder.ChildRemoved:Connect(function(child)
         self:RemoveMobESP(child)
     end)
     table.insert(self.Connections, childRemovedConn)
 end
 
 function ESP:SetupStructureListeners()
-    if not self.StructuresFolder or self.StructureListenersSetup then return end
+    if not structuresFolder or self.StructureListenersSetup then return end
     self.StructureListenersSetup = true
     
-    local childAddedConn = self.StructuresFolder.ChildAdded:Connect(function(child)
-        if self.StructureESPVars.ESP and table.find(self.StructureNames, child.Name) then
+    -- Use DescendantAdded for nested structures (SPYMM style)
+    local descendantAddedConn = structuresFolder.DescendantAdded:Connect(function(child)
+        if self.StructureESPVars.ESP and child:IsA("Model") and table.find(self.StructureNames, child.Name) then
             task.wait(0.2)
             self:CreateStructureESP(child)
         end
     end)
-    table.insert(self.Connections, childAddedConn)
+    table.insert(self.Connections, descendantAddedConn)
 
-    local childRemovedConn = self.StructuresFolder.ChildRemoved:Connect(function(child)
+    local descendantRemovingConn = structuresFolder.DescendantRemoving:Connect(function(child)
         self:RemoveStructureESP(child)
     end)
-    table.insert(self.Connections, childRemovedConn)
+    table.insert(self.Connections, descendantRemovingConn)
 end
 
 -- ============================================
--- REFRESH ALL
+-- PUBLIC SETTER METHODS (SPYMM Style)
 -- ============================================
 function ESP:RefreshAll()
     self:RefreshMobESP()
@@ -1278,31 +1116,22 @@ function ESP:RefreshAll()
     end
 end
 
--- ============================================
--- SETTER METHODS
--- ============================================
-function ESP:SetMobOptions(opts)
-    self.MobOptions = opts
-    self:RefreshMobESP()
-    return self
+function ESP:SetESPMaxDistance(distance)
+    if not self.Options then self.Options = {} end
+    self.Options.ESPMaxDistance = distance
+    self.CrateOptions.MaxDistance = distance
+    self:RefreshAll()
 end
 
-function ESP:SetPlayerOptions(opts)
-    self.PlayerESPVars = opts
-    self:RefreshPlayerESP()
-    return self
+function ESP:SetESPTextSize(size)
+    espConfig.textSize = size
+    applyESPTextSize(size)
 end
 
-function ESP:SetStructureOptions(opts)
-    self.StructureESPVars = opts
-    self:RefreshStructureESP()
-    return self
-end
-
-function ESP:SetCrateOptions(opts)
-    self.CrateOptions = opts
-    self:RefreshCrateESP()
-    return self
+function ESP:SetESPTransparency(fill, outline)
+    espConfig.fillTransparency = fill / 100
+    espConfig.outlineTransparency = outline / 100
+    applyESPTransparency()
 end
 
 function ESP:SetAllItemChams(value)
@@ -1326,64 +1155,17 @@ function ESP:SetAllItemDistances(value)
     end
 end
 
-function ESP:SetItemCategoryESP(category, enabled)
+function ESP:SetItemCategoryEnabled(category, enabled)
     if self.Systems[category] then
         self.Systems[category].vars.ESP = enabled
-        if enabled then
-            self.Systems[category].vars.Chams = enabled
-            self.Systems[category].vars.Name = enabled
-            self.Systems[category].vars.Distance = enabled
-        end
         self:RefreshCategoryESP(self.Systems[category])
     end
-end
-
-function ESP:SetItemCategoryChams(category, enabled)
-    if self.Systems[category] then
-        self.Systems[category].vars.Chams = enabled
-        self:RefreshCategoryESP(self.Systems[category])
-    end
-end
-
-function ESP:SetItemCategoryName(category, enabled)
-    if self.Systems[category] then
-        self.Systems[category].vars.Name = enabled
-        self:RefreshCategoryESP(self.Systems[category])
-    end
-end
-
-function ESP:SetItemCategoryDistance(category, enabled)
-    if self.Systems[category] then
-        self.Systems[category].vars.Distance = enabled
-        self:RefreshCategoryESP(self.Systems[category])
-    end
-end
-
-function ESP:SetESPMaxDistance(distance)
-    self.Options.ESPMaxDistance = distance
-    self.CrateOptions.MaxDistance = distance
-    self:RefreshAll()
-end
-
-function ESP:SetESPTextSize(size)
-    espConfig.textSize = size
-    applyESPTextSize(size)
-end
-
-function ESP:SetESPTransparency(fill, outline)
-    espConfig.fillTransparency = fill / 100
-    espConfig.outlineTransparency = outline / 100
-    applyESPTransparency()
 end
 
 -- ============================================
--- INIT
+-- INITIALIZATION (SPYMM Style)
 -- ============================================
-function ESP:Init(deps)
-    self.Utils = deps and deps.utils
-    self.Config = deps and deps.config
-    self.Notifications = deps and deps.notifications
-    
+function ESP:Init()
     discoverFolders()
     
     -- Setup category listeners
@@ -1393,25 +1175,25 @@ function ESP:Init(deps)
     
     self:SetupCrateListeners()
     
-    -- Periodic folder refresh
+    -- Periodic folder refresh (SPYMM style)
     task.spawn(function()
         while true do
             task.wait(5)
-            local prevChars = self.CharactersFolder
-            local prevItems = self.DroppedItemsFolder
-            local prevStructs = self.StructuresFolder
+            local prevChars = charactersFolder
+            local prevItems = droppedItemsFolder
+            local prevStructs = structuresFolder
             discoverFolders()
             
-            if self.CharactersFolder ~= prevChars and self.CharactersFolder then
+            if charactersFolder ~= prevChars and charactersFolder then
                 self:RefreshMobESP()
                 self:SetupMobListeners()
             end
-            if self.DroppedItemsFolder ~= prevItems and self.DroppedItemsFolder then
+            if droppedItemsFolder ~= prevItems and droppedItemsFolder then
                 for _, sys in pairs(self.Systems) do
                     self:RefreshCategoryESP(sys)
                 end
             end
-            if self.StructuresFolder ~= prevStructs and self.StructuresFolder then
+            if structuresFolder ~= prevStructs and structuresFolder then
                 self:RefreshStructureESP()
                 self:SetupStructureListeners()
             end
@@ -1421,7 +1203,7 @@ function ESP:Init(deps)
     self:SetupMobListeners()
     self:SetupStructureListeners()
     
-    print("[ESP] Initialized - " .. #self.EspDefinitions .. " item categories ready")
+    print(string.format("[ESP] SPYMM-Compatible Module Loaded - %d item categories ready", #self.EspDefinitions))
     return self
 end
 
