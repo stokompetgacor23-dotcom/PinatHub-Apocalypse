@@ -149,16 +149,21 @@ local function scanItemsRecursive(container, sys, callback, depth)
     depth = depth or 0
     if depth > 3 then return end
     for _, child in ipairs(container:GetChildren()) do
+        local matched = false
         if matchesItemName(child.Name, sys.key) or sys.itemList[child.Name] then
-            callback(child)
-        end
-        for targetName in pairs(sys.itemList) do
-            if matchesItemName(child.Name, targetName) then
-                callback(child)
-                break
+            matched = true
+        else
+            for targetName in pairs(sys.itemList) do
+                if matchesItemName(child.Name, targetName) then
+                    matched = true
+                    break
+                end
             end
         end
-        if child:IsA("Folder") or child:IsA("Model") then
+
+        if matched then
+            callback(child)
+        elseif child:IsA("Folder") or child:IsA("Model") then
             scanItemsRecursive(child, sys, callback, depth + 1)
         end
     end
@@ -846,7 +851,6 @@ function ESP:RefreshCategoryESP(sys)
     if not droppedItemsFolder then return end
     
     scanItemsRecursive(droppedItemsFolder, sys, function(item)
-        task.wait(0.02)
         self:CreateCategoryESP(sys, item)
     end)
 end
@@ -1136,6 +1140,7 @@ end
 
 function ESP:SetAllItemChams(value)
     for _, sys in pairs(self.Systems) do
+        if value then sys.vars.ESP = true end
         sys.vars.Chams = value
         self:RefreshCategoryESP(sys)
     end
@@ -1143,6 +1148,7 @@ end
 
 function ESP:SetAllItemNames(value)
     for _, sys in pairs(self.Systems) do
+        if value then sys.vars.ESP = true end
         sys.vars.Name = value
         self:RefreshCategoryESP(sys)
     end
@@ -1150,6 +1156,7 @@ end
 
 function ESP:SetAllItemDistances(value)
     for _, sys in pairs(self.Systems) do
+        if value then sys.vars.ESP = true end
         sys.vars.Distance = value
         self:RefreshCategoryESP(sys)
     end
@@ -1165,7 +1172,16 @@ end
 -- ============================================
 -- INITIALIZATION (SPYMM Style)
 -- ============================================
-function ESP:Init()
+function ESP:Init(modules)
+    self.Config = modules.config or modules.Config
+    if self.Config then
+        self.Options = self.Config:GetOptions()
+
+        -- Link state variables to Config if possible
+        -- This ensures UI updates to Config.Toggles reflect here
+        -- Note: Many UI elements update Config.Toggles directly
+    end
+
     discoverFolders()
     
     -- Setup category listeners
@@ -1186,15 +1202,19 @@ function ESP:Init()
             
             if charactersFolder ~= prevChars and charactersFolder then
                 self:RefreshMobESP()
+                self.MobListenersSetup = false
                 self:SetupMobListeners()
             end
             if droppedItemsFolder ~= prevItems and droppedItemsFolder then
                 for _, sys in pairs(self.Systems) do
                     self:RefreshCategoryESP(sys)
+                    sys.listenersSetup = false
+                    self:SetupCategoryListeners(sys)
                 end
             end
             if structuresFolder ~= prevStructs and structuresFolder then
                 self:RefreshStructureESP()
+                self.StructureListenersSetup = false
                 self:SetupStructureListeners()
             end
         end
