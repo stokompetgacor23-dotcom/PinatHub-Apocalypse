@@ -261,7 +261,7 @@ function UI:BuildInfoTab(tab)
 end
 
 -- ============================================
--- VISUALS TAB (COMPLETELY UNCHANGED - ALL ESP FEATURES)
+-- VISUALS TAB (FIXED - ADDED ALL CATEGORY TOGGLES)
 -- ============================================
 function UI:BuildVisualsTab(tab)
     local config = self.Config
@@ -281,16 +281,13 @@ function UI:BuildVisualsTab(tab)
         Callback = function(value)
             if esp then
                 esp.MobOptions.Name = value
-                esp:RefreshMobESP()
                 esp.PlayerESPVars.Name = value
-                esp:RefreshPlayerESP()
                 esp.StructureESPVars.Name = value
-                esp:RefreshStructureESP()
                 if crateOptions then crateOptions.Name = value end
-                esp:RefreshCrateESP()
                 if esp.SetAllItemNames then
                     esp:SetAllItemNames(value)
                 end
+                esp:RefreshAll()
                 print("[UI] Show Names (All):", value)
             end
         end 
@@ -302,16 +299,13 @@ function UI:BuildVisualsTab(tab)
         Callback = function(value)
             if esp then
                 esp.MobOptions.Distance = value
-                esp:RefreshMobESP()
                 esp.PlayerESPVars.Distance = value
-                esp:RefreshPlayerESP()
                 esp.StructureESPVars.Distance = value
-                esp:RefreshStructureESP()
                 if crateOptions then crateOptions.Distance = value end
-                esp:RefreshCrateESP()
                 if esp.SetAllItemDistances then
                     esp:SetAllItemDistances(value)
                 end
+                esp:RefreshAll()
                 print("[UI] Show Distance (All):", value)
             end
         end 
@@ -404,6 +398,21 @@ function UI:BuildVisualsTab(tab)
         if esp and esp.SetAllItemDistances then esp:SetAllItemDistances(value) end
     end })
     itemSection:Divider()
+
+    -- Category Specific Toggles
+    if esp and esp.EspDefinitions then
+        for _, def in ipairs(esp.EspDefinitions) do
+            itemSection:Toggle({
+                Title = def.displayName,
+                Value = false,
+                Callback = function(value)
+                    if esp.SetItemCategoryEnabled then
+                        esp:SetItemCategoryEnabled(def.key, value)
+                    end
+                end
+            })
+        end
+    end
     
     -- ESP Max Distance
     local distanceSection = tab:Section({ Title = "ESP Distance Settings" })
