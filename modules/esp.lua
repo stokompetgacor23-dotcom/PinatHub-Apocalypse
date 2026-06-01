@@ -1203,7 +1203,7 @@ function ESP:Init()
     self:SetupMobListeners()
     self:SetupStructureListeners()
     
-    print(string.format("[ESP] SPYMM-Compatible Module Loaded - %d item categories ready", #self.EspDefinitions))
+    print(string.format("[ESP] %d item categories ready", #self.EspDefinitions))
     return self
 end
 
