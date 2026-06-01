@@ -47,6 +47,7 @@ ESP.CrateOptions = {
 }
 
 -- Mob names (works with both "Characters" and "Zombies_Local" folders)
+-- NOTE: This is kept for backward compatibility but Mob ESP now detects ALL non-player models
 ESP.MobNames = {"Runner", "Crawler", "Riot", "Zombie", "Brute", "Spitter", "Boss"}
 
 ESP.StructureNames = {
@@ -153,16 +154,115 @@ ESP.DroppedItemsFolder = nil
 ESP.StructuresFolder = nil
 
 -- ============================================
--- UTILITY FUNCTIONS
+-- FIX 1: IMPROVED getItemMainPart
+-- Supports: Model, Tool, BasePart, MeshPart, UnionOperation, nested structures
 -- ============================================
 local function getItemMainPart(item)
-    if item.PrimaryPart then return item.PrimaryPart end
-    for _, child in ipairs(item:GetChildren()) do
-        if child:IsA("BasePart") then
-            return child
+    -- If item is itself a BasePart
+    if item:IsA("BasePart") then
+        return item
+    end
+    
+    -- Check PrimaryPart (fastest)
+    if item.PrimaryPart and item.PrimaryPart:IsA("BasePart") then
+        return item.PrimaryPart
+    end
+    
+    -- Recursively search for first BasePart in descendants
+    local function findBasePart(instance)
+        for _, child in ipairs(instance:GetChildren()) do
+            if child:IsA("BasePart") then
+                return child
+            end
+            local found = findBasePart(child)
+            if found then return found end
+        end
+        return nil
+    end
+    
+    return findBasePart(item)
+end
+
+-- ============================================
+-- FIX 2: FLEXIBLE ITEM NAME MATCHER
+-- Supports: Battery(Clone), Scrap_01, Fuel (1), Watch_01, etc.
+-- ============================================
+local function matchesItemName(itemName, targetName)
+    -- Exact match (fastest)
+    if itemName == targetName then
+        return true
+    end
+    
+    -- Normalize function removes suffixes like (Clone), _01, (1), etc.
+    local function normalize(name)
+        local normalized = name
+        -- Remove (Clone), (1), (2), (3) etc.
+        normalized = normalized:gsub("%s*%([^)]+%)", "")
+        -- Remove _01, _02, _03, _1, _2 etc.
+        normalized = normalized:gsub("_%d+$", "")
+        normalized = normalized:gsub("_%d+", "")
+        -- Remove trailing numbers with space (e.g., "Fuel 1" -> "Fuel")
+        normalized = normalized:gsub("%s+%d+$", "")
+        -- Remove common suffixes
+        normalized = normalized:gsub("Drop$", "")
+        normalized = normalized:gsub("Dropped$", "")
+        normalized = normalized:gsub("Clone$", "")
+        -- Trim whitespace
+        normalized = normalized:gsub("^%s+", ""):gsub("%s+$", "")
+        return normalized:lower()
+    end
+    
+    local normalizedItem = normalize(itemName)
+    local normalizedTarget = normalize(targetName)
+    
+    -- Direct normalized match
+    if normalizedItem == normalizedTarget then
+        return true
+    end
+    
+    -- Check if item contains target name as substring (e.g., "Large Battery" contains "Battery")
+    if normalizedItem:find(normalizedTarget, 1, true) then
+        return true
+    end
+    
+    -- Check if target contains item name (e.g., "Battery" in "BatteryPack")
+    if normalizedTarget:find(normalizedItem, 1, true) then
+        return true
+    end
+    
+    return false
+end
+
+-- Helper to check if an item belongs to a category using flexible matching
+local function itemMatchesCategory(item, sys)
+    local itemName = item.Name
+    for targetName, _ in pairs(sys.itemList) do
+        if matchesItemName(itemName, targetName) then
+            return true
         end
     end
-    return nil
+    return false
+end
+
+-- ============================================
+-- FIX 3: RECURSIVE ITEM SCANNER
+-- Supports items inside nested folders
+-- ============================================
+local function scanItemsRecursive(container, sys, callback, depth)
+    depth = depth or 0
+    if depth > 3 then return end  -- Limit recursion depth to prevent performance issues
+    
+    for _, child in ipairs(container:GetChildren()) do
+        -- Check if this item matches our category
+        if itemMatchesCategory(child, sys) then
+            callback(child)
+        end
+        
+        -- Recurse into containers (Folders and Models)
+        if child:IsA("Folder") or child:IsA("Model") then
+            scanItemsRecursive(child, sys, callback, depth + 1)
+        end
+    end
 end
 
 local function getDistanceColor(dist)
@@ -368,6 +468,8 @@ function ESP:CreateMobESP(char)
     self.MobESPInstances[char] = espTable
 end
 
+-- FIX 4: REMOVED HARDCODED MOB NAME FILTER
+-- Now detects ALL non-player models in the mob folder
 function ESP:RefreshMobESP()
     for char, _ in pairs(self.MobESPInstances) do
         self:RemoveMobESP(char)
@@ -381,15 +483,16 @@ function ESP:RefreshMobESP()
         if p.Character then playerCharSet[p.Character] = true end
     end
     
+    -- Detect EVERY non-player model (removed hardcoded name whitelist)
     for _, child in ipairs(self.CharactersFolder:GetChildren()) do
-        if child:IsA("Model") and not playerCharSet[child] and table.find(self.MobNames, child.Name) then
+        if child:IsA("Model") and not playerCharSet[child] then
             self:CreateMobESP(child)
         end
     end
 end
 
 -- ============================================
--- PLAYER ESP
+-- PLAYER ESP (UNCHANGED)
 -- ============================================
 function ESP:RemovePlayerESP(player)
     local esp = self.PlayerESPInstances[player]
@@ -592,7 +695,7 @@ function ESP:RefreshPlayerESP()
 end
 
 -- ============================================
--- STRUCTURE ESP
+-- STRUCTURE ESP (UNCHANGED)
 -- ============================================
 function ESP:RemoveStructureESP(structure)
     local esp = self.StructureESPInstances[structure]
@@ -727,26 +830,52 @@ function ESP:RefreshStructureESP()
 end
 
 -- ============================================
--- ITEM ESP (Category based - Heartbeat driven)
+-- FIX 5: ITEM ESP - UPDATED WITH:
+-- - Support for BasePart, MeshPart, UnionOperation, Tool, Folder items
+-- - Recursive scanning for nested items
+-- - Flexible name matching
 -- ============================================
 function ESP:CreateCategoryESP(sys, item)
-    if not item:IsA("Model") then return end
-    if sys.instances[item] then return end
+    -- FIX: Accept multiple instance types, not just Models
+    local isValid = false
+    local targetInstance = item
     
-    local mainPart = getItemMainPart(item)
+    if item:IsA("Model") then
+        isValid = true
+    elseif item:IsA("BasePart") or item:IsA("MeshPart") or item:IsA("UnionOperation") then
+        isValid = true
+        -- For single parts, we'll use the part itself
+        targetInstance = item
+    elseif item:IsA("Tool") then
+        isValid = true
+    elseif item:IsA("Folder") then
+        -- Check if folder contains any BasePart (likely an item container)
+        for _, child in ipairs(item:GetChildren()) do
+            if child:IsA("BasePart") then
+                isValid = true
+                targetInstance = item
+                break
+            end
+        end
+    end
+    
+    if not isValid then return end
+    if sys.instances[targetInstance] then return end
+    
+    local mainPart = getItemMainPart(targetInstance)
     if not mainPart then return end
 
-    local espTable = { MainPart = mainPart }
+    local espTable = { MainPart = mainPart, TargetInstance = targetInstance }
 
     if sys.vars.Chams then
         local highlight = Instance.new("Highlight")
         highlight.Name = sys.key .. "_ESP"
-        highlight.Adornee = item
+        highlight.Adornee = targetInstance
         highlight.FillColor = sys.colors.fill
         highlight.FillTransparency = espConfig.fillTransparency
         highlight.OutlineColor = sys.colors.outline
         highlight.OutlineTransparency = espConfig.outlineTransparency
-        highlight.Parent = item
+        highlight.Parent = targetInstance
         espTable.Highlight = highlight
     end
 
@@ -758,18 +887,21 @@ function ESP:CreateCategoryESP(sys, item)
         billboard.Size = UDim2.new(0, 220, 0, 50)
         billboard.StudsOffset = Vector3.new(0, 2, 0)
         billboard.AlwaysOnTop = true
-        billboard.Parent = item
+        billboard.Parent = targetInstance
 
         local frame = Instance.new("Frame")
         frame.Size = UDim2.new(1, 0, 1, 0)
         frame.BackgroundTransparency = 1
         frame.Parent = billboard
 
+        -- Clean up display name (remove suffixes like (Clone))
+        local displayName = targetInstance.Name:gsub("%s*%([^)]+%)", ""):gsub("_%d+$", "")
+        
         nameLabel = Instance.new("TextLabel")
         nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
         nameLabel.Position = UDim2.new(0, 0, 0, 0)
         nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = "[" .. sys.key .. "] " .. item.Name
+        nameLabel.Text = "[" .. sys.key .. "] " .. displayName
         nameLabel.TextColor3 = sys.colors.text
         nameLabel.TextStrokeTransparency = 0.2
         nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
@@ -798,27 +930,37 @@ function ESP:CreateCategoryESP(sys, item)
 
     local connection
     connection = RunService.Heartbeat:Connect(function()
-        if not item or not item.Parent then
+        if not targetInstance or not targetInstance.Parent then
             connection:Disconnect()
             return
         end
+        
+        -- Update mainPart reference in case it changed
+        local currentMainPart = getItemMainPart(targetInstance)
+        if currentMainPart then
+            espTable.MainPart = currentMainPart
+            if billboard and billboard.Parent then
+                billboard.Adornee = currentMainPart
+            end
+        end
+        
         local myChar = LocalPlayer.Character
         local myRoot = myChar and (myChar:FindFirstChild("HumanoidRootPart") or myChar:FindFirstChild("Torso"))
-        if not myRoot then return end
+        if not myRoot or not espTable.MainPart then return end
         
-        local dist = (myRoot.Position - mainPart.Position).Magnitude
+        local dist = (myRoot.Position - espTable.MainPart.Position).Magnitude
         local visible = dist <= self.Options.ESPMaxDistance
 
         if sys.vars.Chams and (not espTable.Highlight or not espTable.Highlight.Parent) then
             local h = Instance.new("Highlight")
             h.Name = sys.key .. "_ESP"
-            h.Adornee = item
+            h.Adornee = targetInstance
             h.FillColor = sys.colors.fill
             h.FillTransparency = espConfig.fillTransparency
             h.OutlineColor = sys.colors.outline
             h.OutlineTransparency = espConfig.outlineTransparency
             h.Enabled = visible
-            h.Parent = item
+            h.Parent = targetInstance
             espTable.Highlight = h
         elseif espTable.Highlight and espTable.Highlight.Parent then
             espTable.Highlight.Enabled = visible
@@ -835,7 +977,7 @@ function ESP:CreateCategoryESP(sys, item)
     espTable.Connection = connection
     table.insert(self.Connections, connection)
 
-    sys.instances[item] = espTable
+    sys.instances[targetInstance] = espTable
 end
 
 function ESP:RemoveCategoryESP(sys, item)
@@ -848,38 +990,57 @@ function ESP:RemoveCategoryESP(sys, item)
     end
 end
 
+-- FIX: Updated to use recursive scanning and flexible matching
 function ESP:RefreshCategoryESP(sys)
     for item, _ in pairs(sys.instances) do
         self:RemoveCategoryESP(sys, item)
     end
     if not sys.vars.ESP then return end
     if not self.DroppedItemsFolder then return end
-    for _, child in ipairs(self.DroppedItemsFolder:GetChildren()) do
-        if sys.itemList[child.Name] then
-            task.wait(0.05)
-            self:CreateCategoryESP(sys, child)
-        end
-    end
+    
+    -- Use recursive scanner to find items in nested folders
+    scanItemsRecursive(self.DroppedItemsFolder, sys, function(item)
+        task.wait(0.02)
+        self:CreateCategoryESP(sys, item)
+    end)
 end
 
+-- FIX: Updated listener to use flexible matching and recursive scanning
 function ESP:SetupCategoryListeners(sys)
     if not self.DroppedItemsFolder or sys.listenersSetup then return end
     sys.listenersSetup = true
+    
     local addedConn = self.DroppedItemsFolder.ChildAdded:Connect(function(child)
-        if sys.vars.ESP and sys.itemList[child.Name] then
+        if not sys.vars.ESP then return end
+        
+        -- Check if the added child matches this category
+        if itemMatchesCategory(child, sys) then
             task.wait(0.1)
             self:CreateCategoryESP(sys, child)
         end
+        
+        -- Also check children of the added child (for nested items)
+        task.wait(0.05)
+        scanItemsRecursive(child, sys, function(nestedItem)
+            self:CreateCategoryESP(sys, nestedItem)
+        end)
     end)
     table.insert(self.Connections, addedConn)
+    
     local removedConn = self.DroppedItemsFolder.ChildRemoved:Connect(function(child)
         self:RemoveCategoryESP(sys, child)
+        -- Also clean up any nested instances
+        for item, _ in pairs(sys.instances) do
+            if item:IsDescendantOf(child) then
+                self:RemoveCategoryESP(sys, item)
+            end
+        end
     end)
     table.insert(self.Connections, removedConn)
 end
 
 -- ============================================
--- CRATES ESP
+-- CRATES ESP (UNCHANGED)
 -- ============================================
 function ESP:FindAllCrates()
     local crates = {}
@@ -1056,16 +1217,26 @@ function ESP:SetupCrateListeners()
 end
 
 -- ============================================
--- LISTENERS
+-- LISTENERS (UPDATED FOR FLEXIBLE MOB DETECTION)
 -- ============================================
 function ESP:SetupMobListeners()
     if not self.CharactersFolder or self.MobListenersSetup then return end
     self.MobListenersSetup = true
     
     local childAddedConn = self.CharactersFolder.ChildAdded:Connect(function(child)
-        if self.MobOptions.ESP and child:IsA("Model") and table.find(self.MobNames, child.Name) then
-            task.wait(0.2)
-            self:CreateMobESP(child)
+        if self.MobOptions.ESP and child:IsA("Model") then
+            -- Exclude player characters
+            local isPlayer = false
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p.Character == child then
+                    isPlayer = true
+                    break
+                end
+            end
+            if not isPlayer then
+                task.wait(0.2)
+                self:CreateMobESP(child)
+            end
         end
     end)
     table.insert(self.Connections, childAddedConn)
