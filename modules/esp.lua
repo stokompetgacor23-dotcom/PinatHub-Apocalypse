@@ -898,7 +898,7 @@ function ESP:FindAllCrates()
     local cratesFolder = mapFolder:FindFirstChild("Crates")
     if not cratesFolder then return crates end
     for _, child in ipairs(cratesFolder:GetChildren()) do
-        if child.Name == "Default" and child:IsA("Model") then
+        if child:IsA("Model") then
             table.insert(crates, child)
         end
     end
@@ -1046,7 +1046,7 @@ function ESP:SetupCrateListeners()
     if not cratesFolder then return end
     
     local childAddedConn = cratesFolder.ChildAdded:Connect(function(child)
-        if child.Name == "Default" and child:IsA("Model") and self.CrateOptions.ESP then
+        if child:IsA("Model") and self.CrateOptions.ESP then
             task.wait(0.1)
             self:CreateCrateESP(child)
         end
@@ -1054,7 +1054,7 @@ function ESP:SetupCrateListeners()
     table.insert(self.Connections, childAddedConn)
     
     local childRemovedConn = cratesFolder.ChildRemoved:Connect(function(child)
-        if child.Name == "Default" and child:IsA("Model") then
+        if child:IsA("Model") then
             self:RemoveCrateESP(child)
         end
     end)

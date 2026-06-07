@@ -86,33 +86,51 @@ function UI:CreateLogo()
 end
 
 -- Setup proximity prompt anti-delay (SAME)
+-- Setup proximity prompt anti-delay (ENHANCED)
 function UI:SetupProximityPromptAntiDelay()
     local proximityPromptActive = false
-    local proximityPromptConn = nil
+    local connections = {}
     
     local function enableProximityPromptAntiDelay()
         if proximityPromptActive then return end
         proximityPromptActive = true
         
+        -- Instant set for existing ones
         for _, v in ipairs(workspace:GetDescendants()) do
             if v:IsA("ProximityPrompt") then
                 v.HoldDuration = 0
             end
         end
         
-        proximityPromptConn = workspace.DescendantAdded:Connect(function(v)
+        -- Listen for new prompts
+        table.insert(connections, workspace.DescendantAdded:Connect(function(v)
             if proximityPromptActive and v:IsA("ProximityPrompt") then
                 v.HoldDuration = 0
             end
-        end)
+        end))
+
+        -- Listen for shown prompts (to override script-set duration like Revive)
+        local ProximityPromptService = game:GetService("ProximityPromptService")
+        table.insert(connections, ProximityPromptService.PromptShown:Connect(function(prompt)
+            if proximityPromptActive then
+                prompt.HoldDuration = 0
+            end
+        end))
+
+        -- Listen for hold begin (some scripts set duration here)
+        table.insert(connections, ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
+            if proximityPromptActive then
+                prompt.HoldDuration = 0
+            end
+        end))
     end
     
     local function disableProximityPromptAntiDelay()
         proximityPromptActive = false
-        if proximityPromptConn then
-            proximityPromptConn:Disconnect()
-            proximityPromptConn = nil
+        for _, conn in ipairs(connections) do
+            conn:Disconnect()
         end
+        connections = {}
     end
     
     return enableProximityPromptAntiDelay, disableProximityPromptAntiDelay
@@ -181,6 +199,9 @@ function UI:Init(modules)
     -- Create Logo
     local logoGui, logoButton = self:CreateLogo()
     
+    -- Setup Proximity Prompt Anti-Delay
+    self.EnableProximityPrompt, self.DisableProximityPrompt = self:SetupProximityPromptAntiDelay()
+
     self.GuiVisible = true
     logoButton.MouseButton1Click:Connect(function()
         self.GuiVisible = not self.GuiVisible
@@ -778,6 +799,24 @@ function UI:BuildExploitsTab(tab)
         options.FuelHuntRange = v
         if farm then farm.FuelHuntRange = v end
     end })
+
+    -- Auto Open Crate Section
+    local autoOpenCrateSection = tab:Section({ Title = "Auto Open Crate" })
+    autoOpenCrateSection:Toggle({ Title = "Auto Open Crate", Value = false, Callback = function(v)
+        toggles.AutoOpenCrate = v
+        if v then
+            if farm and farm.StartAutoOpenCrate then
+                farm:StartAutoOpenCrate()
+            end
+        else
+            if farm and farm.StopAutoOpenCrate then
+                farm:StopAutoOpenCrate()
+            end
+        end
+    end })
+    autoOpenCrateSection:Slider({ Title = "Auto Open Range", Value = { Min = 5, Max = 50, Default = options.AutoOpenCrateRange or 15 }, Callback = function(v)
+        options.AutoOpenCrateRange = v
+    end })
 end
 
 -- ============================================
@@ -832,6 +871,11 @@ function UI:BuildMiscTab(tab)
     local proximitySection = tab:Section({ Title = "ProximityPrompt" })
     proximitySection:Toggle({ Title = "Anti Delay ProximityPrompt", Value = false, Callback = function(v) 
         toggles.ProximityPromptAntiDelay = v
+        if v then
+            if self.EnableProximityPrompt then self.EnableProximityPrompt() end
+        else
+            if self.DisableProximityPrompt then self.DisableProximityPrompt() end
+        end
         if self.Notifications then self.Notifications:Show("ProximityPrompt", v and "Anti Delay Enabled" or "Anti Delay Disabled", 2) end
     end })
     

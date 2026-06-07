@@ -32,6 +32,7 @@ Config.Options = {
     HuntFlyHeight = 7,
     FuelHuntRange = 500,
     FuelFlySpeed = 80,
+    AutoOpenCrateRange = 15,
     FuelPickupRange = 10,
 }
 
@@ -62,6 +63,7 @@ Config.Toggles = {
     ProximityPromptAntiDelay = false,
     AutoDestroyStructure = false,
     AutoHuntFuel = false,
+    AutoOpenCrate = false,
 }
 
 -- Weapon swing speeds
