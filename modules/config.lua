@@ -197,7 +197,8 @@ Config.SupportedMaps = {
     { name = "Slime RNG" },
     { name = "Solo Hunter" },
     { name = "Oil Empire" },
-     { name = "Survive Zombie Arena" },
+    { name = "Survive Zombie Arena" },
+    { name = "Tanah Legenda" },
 }
 
 -- Crate options
