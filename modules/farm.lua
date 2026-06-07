@@ -41,6 +41,12 @@ Farm.PickupCooldown = 0.5
 Farm.BackpackEquipped = false
 Farm.FuelHuntRange = 500
 
+-- Auto Open Crate Variables
+Farm.AutoOpenCrateActive = false
+Farm.AutoOpenCrateConn = nil
+Farm.LastOpenTime = 0
+Farm.OpenCooldown = 0.5
+
 -- Noclip state
 Farm.NoclipEnabled = false
 
@@ -652,6 +658,60 @@ function Farm:StopAutoHuntFuel()
     disableNoclip()
     self.BackpackEquipped = false
     if self.Notifications then self.Notifications:Show("Auto Hunt Fuel", "Disabled", 2) end
+end
+
+-- ==================== AUTO OPEN CRATE ====================
+function Farm:StartAutoOpenCrate()
+    if self.AutoOpenCrateActive then return end
+    self.AutoOpenCrateActive = true
+
+    self.AutoOpenCrateConn = RunService.Heartbeat:Connect(function()
+        if not self.AutoOpenCrateActive then return end
+
+        local char = LocalPlayer.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        local options = self.Config:GetOptions()
+        local range = options.AutoOpenCrateRange or 15
+
+        local map = Workspace:FindFirstChild("Map")
+        local cratesFolder = map and map:FindFirstChild("Crates")
+        if not cratesFolder then return end
+
+        for _, crate in ipairs(cratesFolder:GetChildren()) do
+            if crate:IsA("Model") and not crate:GetAttribute("Opened") then
+                local mainPart = crate:FindFirstChild("MainPart") or crate.PrimaryPart or crate:FindFirstChildWhichIsA("BasePart")
+                if mainPart then
+                    local dist = (mainPart.Position - hrp.Position).Magnitude
+                    if dist <= range then
+                        local logic = crate:FindFirstChild("Logic")
+                        local crateOpened = logic and logic:FindFirstChild("CrateOpened")
+
+                        if crateOpened and crateOpened:IsA("RemoteEvent") then
+                            local now = tick()
+                            if now - self.LastOpenTime >= self.OpenCooldown then
+                                pcall(function() crateOpened:FireServer() end)
+                                self.LastOpenTime = now
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    if self.Notifications then self.Notifications:Show("Auto Open Crate", "Enabled", 2) end
+end
+
+function Farm:StopAutoOpenCrate()
+    self.AutoOpenCrateActive = false
+    if self.AutoOpenCrateConn then
+        self.AutoOpenCrateConn:Disconnect()
+        self.AutoOpenCrateConn = nil
+    end
+    if self.Notifications then self.Notifications:Show("Auto Open Crate", "Disabled", 2) end
 end
 
 -- ==================== INIT ====================
