@@ -177,13 +177,14 @@ function AutoPickup:Start(options, notifications)
             
             local myPos = hrp.Position
             local pickupRange = self.Options.AutoPickupRange or 50
-            local pickupAll = self.Options.AutoPickupAll or true
+            local pickupAll = self.Options.AutoPickupAll
+            if pickupAll == nil then pickupAll = true end
             local pickupDelay = self.Options.AutoPickupDelay or 0.1
             
             local itemsToPickup = {}
             
             for _, item in ipairs(droppedItems:GetChildren()) do
-                if item and item.Parent and pickupItemSet[item.Name] then
+                if item and item.Parent and (pickupAll or pickupItemSet[item.Name]) then
                     local part = getItemPrimaryPartForPickup(item)
                     if part and part.Parent then
                         local dist = (part.Position - myPos).Magnitude
@@ -206,7 +207,11 @@ function AutoPickup:Start(options, notifications)
                 if not target.item.Parent then continue end
                 
                 local success = pcall(function()
-                    self.AdjustBackpack:FireServer(target.item)
+                    if self.Network and self.Network.FireAdjustBackpack then
+                        self.Network:FireAdjustBackpack(target.item)
+                    else
+                        self.AdjustBackpack:FireServer(target.item)
+                    end
                 end)
                 
                 if success then
@@ -227,7 +232,10 @@ function AutoPickup:Start(options, notifications)
         notifications:Show("Auto Pickup", "Enabled - Range: " .. (options.AutoPickupRange or 50) .. " studs", 2)
     end
     
-    print("[AUTO PICKUP] Started - Range:", pickupRange, "- Pickup All:", pickupAll)
+    local initialRange = options.AutoPickupRange or 50
+    local initialAll = options.AutoPickupAll
+    if initialAll == nil then initialAll = true end
+    print("[AUTO PICKUP] Started - Range:", initialRange, "- Pickup All:", initialAll)
 end
 
 -- ============================================
@@ -255,6 +263,7 @@ function AutoPickup:Init(deps)
     self.Config = deps.config or deps.Config
     self.Utils = deps.utils or deps.Utils
     self.Notifications = deps.notifications or deps.Notifications
+    self.Network = deps.network or deps.Network
     
     print("[AUTO PICKUP MODULE] Initialized")
     return self
