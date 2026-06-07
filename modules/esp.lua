@@ -906,7 +906,13 @@ function ESP:FindAllCrates()
 end
 
 function ESP:GetCrateMainPart(crate)
+    if not crate then return nil end
     if crate.PrimaryPart then return crate.PrimaryPart end
+    local possibleParts = {"Lid", "Handle", "Handles", "Base", "Body", "CratePart"}
+    for _, partName in ipairs(possibleParts) do
+        local part = crate:FindFirstChild(partName)
+        if part and part:IsA("BasePart") then return part end
+    end
     for _, child in ipairs(crate:GetChildren()) do
         if child:IsA("BasePart") then return child end
     end

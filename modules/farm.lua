@@ -46,31 +46,12 @@ Farm.AutoOpenCrateActive = false
 Farm.AutoOpenCrateConn = nil
 Farm.LastOpenTime = 0
 Farm.OpenCooldown = 0.5
+Farm.OpenedCrates = {} -- Tracking to prevent spam
 
 -- Noclip state
 Farm.NoclipEnabled = false
 
 -- AdjustBackpack remote
-local AdjustBackpack = nil
-
-local function findAdjustBackpack()
-    local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
-    if Remotes then
-        local Tools = Remotes:FindFirstChild("Tools")
-        if Tools then
-            AdjustBackpack = Tools:FindFirstChild("AdjustBackpack")
-        end
-    end
-    if not AdjustBackpack then
-        for _, remote in ipairs(ReplicatedStorage:GetDescendants()) do
-            if remote:IsA("RemoteEvent") and remote.Name == "AdjustBackpack" then
-                AdjustBackpack = remote
-                break
-            end
-        end
-    end
-    return AdjustBackpack
-end
 
 local function enableNoclip()
     if Farm.NoclipEnabled then return end
@@ -524,13 +505,11 @@ function Farm:FindNearestFuel()
 end
 
 function Farm:PickupFuel(item)
-    findAdjustBackpack()
-    if not AdjustBackpack then return false end
-    
-    local success = pcall(function()
-        AdjustBackpack:FireServer(item)
-    end)
-    return success
+    if self.Network and self.Network.FireAdjustBackpack then
+        self.Network:FireAdjustBackpack(item)
+        return true
+    end
+    return false
 end
 
 function Farm:StartFuelFly()
@@ -661,9 +640,35 @@ function Farm:StopAutoHuntFuel()
 end
 
 -- ==================== AUTO OPEN CRATE ====================
+function Farm:AutoPickupNearCrate(cratePos)
+    local droppedItems = Workspace:FindFirstChild("DroppedItems")
+    if not droppedItems then return end
+
+    local pickupRange = 20
+    local pickupItemSet = self.Utils:GetPickupItemSet()
+
+    for i = 1, 3 do -- Multiple scans with small delay to catch all drops
+        for _, item in ipairs(droppedItems:GetChildren()) do
+            if item:IsA("Model") and pickupItemSet[item.Name] then
+                local part = self.Utils:GetItemPrimaryPart(item)
+                if part then
+                    local dist = (part.Position - cratePos).Magnitude
+                    if dist <= pickupRange then
+                        if self.Network and self.Network.FireAdjustBackpack then
+                            self.Network:FireAdjustBackpack(item)
+                        end
+                    end
+                end
+            end
+        end
+        task.wait(0.2)
+    end
+end
+
 function Farm:StartAutoOpenCrate()
     if self.AutoOpenCrateActive then return end
     self.AutoOpenCrateActive = true
+    self.OpenedCrates = {}
 
     self.AutoOpenCrateConn = RunService.Heartbeat:Connect(function()
         if not self.AutoOpenCrateActive then return end
@@ -681,19 +686,41 @@ function Farm:StartAutoOpenCrate()
         if not cratesFolder then return end
 
         for _, crate in ipairs(cratesFolder:GetChildren()) do
-            if crate:IsA("Model") and not crate:GetAttribute("Opened") then
-                local mainPart = crate:FindFirstChild("MainPart") or crate.PrimaryPart or crate:FindFirstChildWhichIsA("BasePart")
+            if crate:IsA("Model") and not crate:GetAttribute("Opened") and not self.OpenedCrates[crate] then
+                local mainPart = self.Utils:GetCrateMainPart(crate)
                 if mainPart then
                     local dist = (mainPart.Position - hrp.Position).Magnitude
                     if dist <= range then
-                        local logic = crate:FindFirstChild("Logic")
-                        local crateOpened = logic and logic:FindFirstChild("CrateOpened")
+                        local now = tick()
+                        if now - self.LastOpenTime >= self.OpenCooldown then
+                            local logic = crate:FindFirstChild("Logic")
+                            local crateOpened = logic and logic:FindFirstChild("CrateOpened")
+                            local opened = false
 
-                        if crateOpened and crateOpened:IsA("RemoteEvent") then
-                            local now = tick()
-                            if now - self.LastOpenTime >= self.OpenCooldown then
+                            if crateOpened and crateOpened:IsA("RemoteEvent") then
                                 pcall(function() crateOpened:FireServer() end)
+                                opened = true
+                            else
+                                -- Fallback to ProximityPrompt
+                                local prompt = crate:FindFirstChildWhichIsA("ProximityPrompt", true)
+                                if prompt then
+                                    if fireproximityprompt then
+                                        fireproximityprompt(prompt)
+                                    else
+                                        prompt:InputBegan(Enum.UserInputType.MouseButton1)
+                                    end
+                                    opened = true
+                                end
+                            end
+
+                            if opened then
                                 self.LastOpenTime = now
+                                self.OpenedCrates[crate] = true
+                                -- Auto Pickup items from this crate
+                                task.spawn(function()
+                                    task.wait(0.5) -- Wait for items to drop
+                                    self:AutoPickupNearCrate(mainPart.Position)
+                                end)
                             end
                         end
                     end
@@ -702,7 +729,7 @@ function Farm:StartAutoOpenCrate()
         end
     end)
 
-    if self.Notifications then self.Notifications:Show("Auto Open Crate", "Enabled", 2) end
+    if self.Notifications then self.Notifications:Show("Auto Open Crate", "Enabled + Auto Pickup", 2) end
 end
 
 function Farm:StopAutoOpenCrate()
@@ -716,10 +743,10 @@ end
 
 -- ==================== INIT ====================
 function Farm:Init(deps)
-    self.Config = deps.Config
-    self.Network = deps.Network
-    self.Utils = deps.Utils
-    self.Notifications = deps.Notifications
+    self.Config = deps.config or deps.Config
+    self.Network = deps.network or deps.Network
+    self.Utils = deps.utils or deps.Utils
+    self.Notifications = deps.notifications or deps.Notifications
     
     -- Update range from config if available
     if self.Config then

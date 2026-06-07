@@ -210,7 +210,7 @@ function Utils:FindAllCrates()
     local cratesFolder = mapFolder:FindFirstChild("Crates")
     if not cratesFolder then return crates end
     for _, child in ipairs(cratesFolder:GetChildren()) do
-        if child.Name == "Default" and child:IsA("Model") then
+        if child:IsA("Model") then
             table.insert(crates, child)
         end
     end
