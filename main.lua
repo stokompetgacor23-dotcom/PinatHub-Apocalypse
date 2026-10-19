@@ -10,7 +10,38 @@ local function Load(name)
     local url = BASE .. name .. ".lua"
     
     local ok, result = pcall(function()
-        return loadstring(game:HttpGet(url))()
+        local src
+        -- Try with cache-buster timestamp to prevent stale GitHub Raw CDN caching
+        local getOk = pcall(function()
+            src = game:HttpGet(url .. "?v=" .. tostring(os.time()))
+        end)
+        
+        if not getOk or not src or #src == 0 then
+            src = game:HttpGet(url)
+        end
+        
+        if not src or #src == 0 then
+            error("Empty response received for: " .. name)
+        end
+        
+        if src:sub(1, 14) == "404: Not Found" then
+            error("404 Not Found on GitHub for: " .. name)
+        end
+        
+        local fn, compileErr = loadstring(src, name)
+        if not fn then
+            fn, compileErr = loadstring(src)
+        end
+        
+        if not fn then
+            error("Syntax/Compile error in [" .. name .. "]: " .. tostring(compileErr))
+        end
+        
+        local modResult = fn()
+        if modResult == nil then
+            error("Module [" .. name .. "] executed but returned nil")
+        end
+        return modResult
     end)
     
     if ok and result then

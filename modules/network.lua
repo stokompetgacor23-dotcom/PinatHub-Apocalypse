@@ -265,8 +265,13 @@ function Network:FireShoot(tool, origin, targetPos, ...)
     if not tool then return false end
     local shootRemote = tool:FindFirstChild("Shoot")
     if shootRemote then
+        local extraArgs = {...}
         local ok, err = pcall(function()
-            shootRemote:FireServer(origin, targetPos, ...)
+            if #extraArgs > 0 then
+                shootRemote:FireServer(origin, targetPos, (table.unpack or unpack)(extraArgs))
+            else
+                shootRemote:FireServer(origin, targetPos)
+            end
         end)
         return ok
     end

@@ -206,25 +206,25 @@ function AutoPickup:Start(options, notifications)
             
             for _, target in ipairs(itemsToPickup) do
                 if not self.Active then break end
-                if not target.item.Parent then continue end
-                
-                local success = pcall(function()
-                    if self.Network and self.Network.FireAdjustBackpack then
-                        self.Network:FireAdjustBackpack(target.item)
-                    else
-                        self.AdjustBackpack:FireServer(target.item)
+                if target.item and target.item.Parent then
+                    local success = pcall(function()
+                        if self.Network and self.Network.FireAdjustBackpack then
+                            self.Network:FireAdjustBackpack(target.item)
+                        elseif self.AdjustBackpack then
+                            self.AdjustBackpack:FireServer(target.item)
+                        end
+                    end)
+                    
+                    if success then
+                        if notifications then
+                            print("[AUTO PICKUP] Picked up to backpack:", target.name, "- Distance:", math.floor(target.dist))
+                        end
+                        task.wait(pickupDelay)
                     end
-                end)
-                
-                if success then
-                    if notifications then
-                        print("[AUTO PICKUP] Picked up to backpack:", target.name, "- Distance:", math.floor(target.dist))
+                    
+                    if not pickupAll then
+                        break
                     end
-                    task.wait(pickupDelay)
-                end
-                
-                if not pickupAll then
-                    break
                 end
             end
         end)
