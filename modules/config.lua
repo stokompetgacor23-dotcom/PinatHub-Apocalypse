@@ -42,8 +42,11 @@ Config.Options = {
     ClassLevel = 3,
     SelectedPerk = "Specialist",
     SuperDragRange = 500,
-    ScrapDamageBoost = 100,
-    AutoStowToBag = true,
+    AutoHealThreshold = 50,
+    InstantHealThreshold = 40,
+    DamageReductionPercent = 75,
+    SuperRegenRate = 15,
+    MegaMapRevealSize = 10,
 }
 
 -- Default Toggles
@@ -71,11 +74,9 @@ Config.Toggles = {
     RemoveFog = false,
     FPSUnlock = false,
     AutoPickup = false,
-    AutoStowToBag = true,
     AllItems = false,
     AutoHunt = false,
     InstantProximityPrompt = false,
-    AutoDestroyStructure = false,
     AutoHuntFuel = false,
     AutoOpenCrate = false,
     NativeItemESP = false,
@@ -91,7 +92,14 @@ Config.Toggles = {
     Untouchable = false,
     Untargetable = false,
     SuperDrag = false,
-    InstantBreakScrap = false,
+    AutoHeal = false,
+    InstantHeal = false,
+    SuperRegen = false,
+    DamageReduction = false,
+    PsychicShield = false,
+    StatusImmunity = false,
+    InstantRevive = false,
+    MegaMapReveal = false,
 }
 
 -- Game Classes List (24 Classes + God Hybrid)

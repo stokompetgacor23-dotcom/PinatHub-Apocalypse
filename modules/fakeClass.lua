@@ -34,7 +34,6 @@ local FakeClass = {
     UntargetableActive = false,
     SuperDragActive = false,
     SuperDragRange = 500,
-    InstantBreakScrapActive = false,
     
     -- Internals
     Connections = {},
@@ -710,47 +709,6 @@ function FakeClass:StopSuperDrag()
     print("[BYPASS] Super Drag Range Disabled")
 end
 
--- =======================================================
--- BYPASS: INSTANT BREAK SCRAP & BARRELS
--- Explorer Class line 14983:
--- ScrapDamageBoost attribute breaks barrels & scrap piles instantly
--- =======================================================
-function FakeClass:StartInstantBreakScrap(boost)
-    self.InstantBreakScrapActive = true
-    local val = boost or 100
-    
-    local conn = RunService.Heartbeat:Connect(function()
-        if not self.InstantBreakScrapActive then return end
-        local char = LocalPlayer.Character
-        if char then
-            char:SetAttribute("ScrapDamageBoost", val)
-            char:SetAttribute("MeleeDamage", 50)
-            char:SetAttribute("MeleeAttackSpeed", 50)
-            
-            local tool = char:FindFirstChildOfClass("Tool")
-            if tool and tool:FindFirstChild("Stats") then
-                pcall(function()
-                    tool.Stats:SetAttribute("Damage", 9999)
-                    tool.Stats:SetAttribute("ScrapDamage", 9999)
-                end)
-            end
-        end
-    end)
-    
-    table.insert(self.Connections, conn)
-    print("[BYPASS] Instant Break Scrap & Barrels Enabled (ScrapDamageBoost =", val, ")")
-end
-
-function FakeClass:StopInstantBreakScrap()
-    self.InstantBreakScrapActive = false
-    local char = LocalPlayer.Character
-    if char then
-        char:SetAttribute("ScrapDamageBoost", nil)
-        char:SetAttribute("MeleeDamage", nil)
-        char:SetAttribute("MeleeAttackSpeed", nil)
-    end
-    print("[BYPASS] Instant Break Scrap Disabled")
-end
 
 -- =======================================================
 -- RESPAWN HANDLER (Maintains all active class & bypass states)
@@ -783,9 +741,6 @@ function FakeClass:SetupRespawnHandler()
         end
         if self.SuperDragActive then
             char:SetAttribute("DragRange", self.SuperDragRange)
-        end
-        if self.InstantBreakScrapActive then
-            char:SetAttribute("ScrapDamageBoost", 10)
         end
     end)
 end

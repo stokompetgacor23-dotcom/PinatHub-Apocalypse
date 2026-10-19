@@ -529,6 +529,173 @@ function UI:BuildPlayerTab(tab)
     end })
 
     -- ============================================
+    -- AUTO HEALING & DEFENSE SUITE (GAME DUMP ATTRIBUTES)
+    -- ============================================
+    local healingSection = tab:Section({ Title = "Auto Healing & Defense (Game Dump Structure)" })
+    healingSection:Paragraph({
+        Title = "Game Engine Health & Shield Suite",
+        Desc = "Uses native game attributes (MedicalSpeed, IncomingHealing, Regen, DamageReduction, PsychicShieldHealth, NegativeStatusResistance, ReviveSpeed) for automatic survival."
+    })
+    
+    healingSection:Toggle({
+        Title = "Auto Heal Self (Medical Items)",
+        Value = false,
+        Callback = function(v)
+            toggles.AutoHeal = v
+            if v then
+                if playerModule and playerModule.StartAutoHeal then
+                    playerModule:StartAutoHeal(options.AutoHealThreshold or 50)
+                end
+            else
+                if playerModule and playerModule.StopAutoHeal then
+                    playerModule:StopAutoHeal()
+                end
+            end
+        end
+    })
+    
+    healingSection:Slider({
+        Title = "Auto Heal Threshold (%)",
+        Value = { Min = 10, Max = 90, Default = options.AutoHealThreshold or 50 },
+        Callback = function(v)
+            options.AutoHealThreshold = v
+            if toggles.AutoHeal and playerModule and playerModule.StartAutoHeal then
+                playerModule:StartAutoHeal(v)
+            end
+        end
+    })
+    
+    healingSection:Toggle({
+        Title = "Instant Health Snap (< Threshold)",
+        Value = false,
+        Callback = function(v)
+            toggles.InstantHeal = v
+            if v then
+                if playerModule and playerModule.StartInstantHeal then
+                    playerModule:StartInstantHeal(options.InstantHealThreshold or 40)
+                end
+            else
+                if playerModule and playerModule.StopInstantHeal then
+                    playerModule:StopInstantHeal()
+                end
+            end
+        end
+    })
+    
+    healingSection:Slider({
+        Title = "Instant Heal Threshold (%)",
+        Value = { Min = 10, Max = 90, Default = options.InstantHealThreshold or 40 },
+        Callback = function(v)
+            options.InstantHealThreshold = v
+            if toggles.InstantHeal and playerModule and playerModule.StartInstantHeal then
+                playerModule:StartInstantHeal(v)
+            end
+        end
+    })
+    
+    healingSection:Toggle({
+        Title = "Super Health Regen (60x Regen Rate)",
+        Value = false,
+        Callback = function(v)
+            toggles.SuperRegen = v
+            if v then
+                if playerModule and playerModule.StartSuperRegen then
+                    playerModule:StartSuperRegen(options.SuperRegenRate or 15)
+                end
+            else
+                if playerModule and playerModule.StopSuperRegen then
+                    playerModule:StopSuperRegen()
+                end
+            end
+        end
+    })
+    
+    healingSection:Toggle({
+        Title = "Iron Skin (-75% Damage Taken)",
+        Value = false,
+        Callback = function(v)
+            toggles.DamageReduction = v
+            if v then
+                if playerModule and playerModule.StartDamageReduction then
+                    playerModule:StartDamageReduction(options.DamageReductionPercent or 75)
+                end
+            else
+                if playerModule and playerModule.StopDamageReduction then
+                    playerModule:StopDamageReduction()
+                end
+            end
+        end
+    })
+    
+    healingSection:Toggle({
+        Title = "Psychic Forcefield Shield",
+        Value = false,
+        Callback = function(v)
+            toggles.PsychicShield = v
+            if v then
+                if playerModule and playerModule.StartPsychicShield then
+                    playerModule:StartPsychicShield(100)
+                end
+            else
+                if playerModule and playerModule.StopPsychicShield then
+                    playerModule:StopPsychicShield()
+                end
+            end
+        end
+    })
+    
+    healingSection:Toggle({
+        Title = "Negative Status Immunity (Fire/Bleed/Poison)",
+        Value = false,
+        Callback = function(v)
+            toggles.StatusImmunity = v
+            if v then
+                if playerModule and playerModule.StartStatusImmunity then
+                    playerModule:StartStatusImmunity()
+                end
+            else
+                if playerModule and playerModule.StopStatusImmunity then
+                    playerModule:StopStatusImmunity()
+                end
+            end
+        end
+    })
+    
+    healingSection:Toggle({
+        Title = "Instant Teammate Revive (0s Cooldown)",
+        Value = false,
+        Callback = function(v)
+            toggles.InstantRevive = v
+            if v then
+                if playerModule and playerModule.StartInstantRevive then
+                    playerModule:StartInstantRevive()
+                end
+            else
+                if playerModule and playerModule.StopInstantRevive then
+                    playerModule:StopInstantRevive()
+                end
+            end
+        end
+    })
+    
+    healingSection:Toggle({
+        Title = "Mega Fog Map Reveal (10x Area)",
+        Value = false,
+        Callback = function(v)
+            toggles.MegaMapReveal = v
+            if v then
+                if playerModule and playerModule.StartMegaMapReveal then
+                    playerModule:StartMegaMapReveal(options.MegaMapRevealSize or 10)
+                end
+            else
+                if playerModule and playerModule.StopMegaMapReveal then
+                    playerModule:StopMegaMapReveal()
+                end
+            end
+        end
+    })
+
+    -- ============================================
     -- FAKE CLASS & PERKS SIMULATOR (GAME ENGINE STRUCTURE)
     -- ============================================
     local fakeClass = self.FakeClass
@@ -770,21 +937,6 @@ function UI:BuildPlayerTab(tab)
             options.SuperDragRange = v
             if toggles.SuperDrag and fakeClass then
                 fakeClass:StartSuperDrag(v)
-            end
-        end
-    })
-    
-    bypassSection:Toggle({
-        Title = "Instant Break Scrap & Barrels",
-        Value = false,
-        Callback = function(v)
-            toggles.InstantBreakScrap = v
-            if v then
-                if fakeClass then fakeClass:StartInstantBreakScrap(options.ScrapDamageBoost) end
-                if self.Notifications then self.Notifications:Show("Scrap Boost", "Enabled - 1-Hit Barrels & Scrap Piles!", 2) end
-            else
-                if fakeClass then fakeClass:StopInstantBreakScrap() end
-                if self.Notifications then self.Notifications:Show("Scrap Boost", "Disabled", 2) end
             end
         end
     })
@@ -1080,41 +1232,10 @@ function UI:BuildExploitsTab(tab)
             end
         end
     end })
-    autoPickupSection:Toggle({ 
-        Title = "Auto Stow to Bag (Masukkan ke Tas)", 
-        Value = true, 
-        Callback = function(v) 
-            options.AutoStowToBag = v 
-            if autoPickup and autoPickup.Options then 
-                autoPickup.Options.AutoStowToBag = v 
-            end 
-        end 
-    })
     autoPickupSection:Toggle({ Title = "Pickup All Items", Value = true, Callback = function(v) options.AutoPickupAll = v end })
     autoPickupSection:Slider({ Title = "Pickup Range", Value = { Min = 12, Max = 200, Default = options.AutoPickupRange or 50 }, Callback = function(v) options.AutoPickupRange = v end })
     autoPickupSection:Slider({ Title = "Pickup Delay", Value = { Min = 0.05, Max = 1, Default = options.AutoPickupDelay or 0.1, Decimals = 2 }, Callback = function(v) options.AutoPickupDelay = v end })
     
-    -- Auto Destroy Structure (Barrel & Scrap Pile)
-    local autoDestroySection = tab:Section({ Title = "Auto Destroy (Barrel & Scrap Pile)" })
-    autoDestroySection:Paragraph({
-        Title = "1-Hit Scrap & Barrels Breaker",
-        Desc = "Automatically targets Barrels and Scrap Piles within range, equips melee tools, and breaks them in 1 hit using ScrapDamageBoost bypass."
-    })
-    autoDestroySection:Toggle({ Title = "Auto Destroy (1-Hit Break)", Value = false, Callback = function(v) 
-        toggles.AutoDestroyStructure = v
-        if v then 
-            if fakeClass and fakeClass.StartInstantBreakScrap then 
-                fakeClass:StartInstantBreakScrap(100) 
-            end
-            if farm and farm.StartAutoDestroy then 
-                farm:StartAutoDestroy(notifications)
-            end
-        else 
-            if farm and farm.StopAutoDestroy then 
-                farm:StopAutoDestroy(notifications)
-            end
-        end
-    end })
     
     -- Auto Hunt Fuel
     local autoHuntFuelSection = tab:Section({ Title = "Auto Hunt Fuel" })

@@ -39,6 +39,37 @@ local Player = {
     NativeItemESPActive = false,
     AntiHungerActive = false,
     AntiHungerConn = nil,
+    
+    -- Healing & Defense (Game Dump Attributes)
+    AutoHealActive = false,
+    AutoHealThreshold = 0.5,
+    AutoHealConn = nil,
+    IsHealing = false,
+    LastHealTick = 0,
+    
+    InstantHealActive = false,
+    InstantHealThreshold = 0.4,
+    InstantHealConn = nil,
+    
+    SuperRegenActive = false,
+    SuperRegenConn = nil,
+    
+    DamageReductionActive = false,
+    DamageReductionConn = nil,
+    DamageReductionValue = 0.75,
+    
+    PsychicShieldActive = false,
+    PsychicShieldConn = nil,
+    
+    StatusImmunityActive = false,
+    StatusImmunityConn = nil,
+    
+    InstantReviveActive = false,
+    InstantReviveConn = nil,
+    
+    MegaMapRevealActive = false,
+    MegaMapRevealConn = nil,
+    
     Utils = nil,
     Notifications = nil,
     Config = nil,
@@ -582,6 +613,448 @@ function Player:UnlockEntireMap()
 end
 
 -- ============================================
+-- AUTO HEAL SELF (GAME DUMP MEDICAL ITEMS + ATTRIBUTES)
+-- ============================================
+local MEDICAL_ITEM_NAMES = {"Medkit", "Bandage", "Compound H", "Compound I", "Compound R", "Compound S"}
+
+function Player:FindMedicalItem()
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    
+    -- Check character hands first
+    for _, name in ipairs(MEDICAL_ITEM_NAMES) do
+        local tool = char:FindFirstChild(name)
+        if tool and tool:IsA("Tool") then
+            return tool
+        end
+    end
+    
+    -- Check Backpack
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if backpack then
+        for _, name in ipairs(MEDICAL_ITEM_NAMES) do
+            local tool = backpack:FindFirstChild(name)
+            if tool and tool:IsA("Tool") then
+                return tool
+            end
+        end
+        -- Fallback: any tool with Medical item type or healing attributes
+        for _, tool in ipairs(backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                if tool:GetAttribute("ItemType") == "Medical" or tool:GetAttribute("Heal") or string.find(tool.Name, "Med") or string.find(tool.Name, "Bandage") then
+                    return tool
+                end
+            end
+        end
+    end
+    return nil
+end
+
+function Player:StartAutoHeal(thresholdPercent)
+    if thresholdPercent then
+        self.AutoHealThreshold = thresholdPercent / 100
+    end
+    self.AutoHealActive = true
+    
+    if self.AutoHealConn then
+        self.AutoHealConn:Disconnect()
+        self.AutoHealConn = nil
+    end
+    
+    self.AutoHealConn = RunService.Heartbeat:Connect(function()
+        if not self.AutoHealActive or self.IsHealing then return end
+        
+        local char = LocalPlayer.Character
+        if not char or (char:GetAttribute("Dead") == true) then return end
+        
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then return end
+        
+        local healthRatio = hum.Health / hum.MaxHealth
+        if healthRatio <= self.AutoHealThreshold then
+            local now = tick()
+            if now - self.LastHealTick < 0.6 then return end
+            self.IsHealing = true
+            self.LastHealTick = now
+            
+            task.spawn(function()
+                pcall(function()
+                    -- Apply game MedicalSpeed (instant consume) & IncomingHealing boost
+                    char:SetAttribute("MedicalSpeed", 1000)
+                    char:SetAttribute("IncomingHealing", 5)
+                    char:SetAttribute("UsingMedical", nil)
+                    
+                    local medTool = self:FindMedicalItem()
+                    if medTool then
+                        local previousTool = char:FindFirstChildOfClass("Tool")
+                        if previousTool == medTool then previousTool = nil end
+                        
+                        -- Equip and activate medical item
+                        hum:EquipTool(medTool)
+                        task.wait(0.05)
+                        medTool:Activate()
+                        
+                        -- Fire any remote inside the tool if present
+                        for _, child in ipairs(medTool:GetChildren()) do
+                            if child:IsA("RemoteEvent") then
+                                pcall(function() child:FireServer() end)
+                            end
+                        end
+                        
+                        task.wait(0.15)
+                        char:SetAttribute("UsingMedical", nil)
+                        
+                        -- Re-equip previous tool
+                        if previousTool and previousTool.Parent then
+                            hum:EquipTool(previousTool)
+                        end
+                    else
+                        -- Fallback instant attribute healing if no medkit in bag
+                        char:SetAttribute("Regen", 25)
+                        task.wait(0.3)
+                        if not self.SuperRegenActive then
+                            char:SetAttribute("Regen", nil)
+                        end
+                    end
+                end)
+                self.IsHealing = false
+            end)
+        end
+    end)
+    
+    if self.Utils then self.Utils:AddConnection(self.AutoHealConn) end
+    if self.Notifications then
+        self.Notifications:Show("Auto Heal", "Enabled - Threshold: " .. math.floor(self.AutoHealThreshold * 100) .. "% HP", 2)
+    end
+    print("[AUTO HEAL] Started - Threshold:", self.AutoHealThreshold * 100, "%")
+end
+
+function Player:StopAutoHeal()
+    self.AutoHealActive = false
+    if self.AutoHealConn then
+        self.AutoHealConn:Disconnect()
+        self.AutoHealConn = nil
+    end
+    self.IsHealing = false
+    local char = LocalPlayer.Character
+    if char and not self.SuperRegenActive then
+        char:SetAttribute("MedicalSpeed", nil)
+        char:SetAttribute("IncomingHealing", nil)
+    end
+    if self.Notifications then
+        self.Notifications:Show("Auto Heal", "Disabled", 2)
+    end
+    print("[AUTO HEAL] Disabled")
+end
+
+-- ============================================
+-- INSTANT HEAL (RAPID HP RESTORATION WHEN BELOW THRESHOLD)
+-- ============================================
+function Player:StartInstantHeal(thresholdPercent)
+    if thresholdPercent then
+        self.InstantHealThreshold = thresholdPercent / 100
+    end
+    self.InstantHealActive = true
+    
+    if self.InstantHealConn then
+        self.InstantHealConn:Disconnect()
+        self.InstantHealConn = nil
+    end
+    
+    self.InstantHealConn = RunService.Heartbeat:Connect(function()
+        if not self.InstantHealActive then return end
+        local char = LocalPlayer.Character
+        if not char or (char:GetAttribute("Dead") == true) then return end
+        
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then return end
+        
+        if (hum.Health / hum.MaxHealth) <= self.InstantHealThreshold then
+            pcall(function()
+                char:SetAttribute("Regen", 100)
+                char:SetAttribute("IncomingHealing", 10)
+            end)
+        elseif not self.SuperRegenActive then
+            if char:GetAttribute("Regen") == 100 then
+                char:SetAttribute("Regen", nil)
+                char:SetAttribute("IncomingHealing", nil)
+            end
+        end
+    end)
+    
+    if self.Utils then self.Utils:AddConnection(self.InstantHealConn) end
+    if self.Notifications then
+        self.Notifications:Show("Instant Heal", "Enabled - Triggers at < " .. math.floor(self.InstantHealThreshold * 100) .. "% HP", 2)
+    end
+end
+
+function Player:StopInstantHeal()
+    self.InstantHealActive = false
+    if self.InstantHealConn then
+        self.InstantHealConn:Disconnect()
+        self.InstantHealConn = nil
+    end
+    local char = LocalPlayer.Character
+    if char and not self.SuperRegenActive then
+        char:SetAttribute("Regen", nil)
+        char:SetAttribute("IncomingHealing", nil)
+    end
+    if self.Notifications then
+        self.Notifications:Show("Instant Heal", "Disabled", 2)
+    end
+end
+
+-- ============================================
+-- SUPER HEALTH REGEN (PASSIVE REGEN ATTRIBUTE OVERRIDE)
+-- ============================================
+function Player:StartSuperRegen(regenRate)
+    self.SuperRegenActive = true
+    local rate = regenRate or 15
+    
+    if self.SuperRegenConn then
+        self.SuperRegenConn:Disconnect()
+        self.SuperRegenConn = nil
+    end
+    
+    self.SuperRegenConn = RunService.Heartbeat:Connect(function()
+        if not self.SuperRegenActive then return end
+        local char = LocalPlayer.Character
+        if char then
+            char:SetAttribute("Regen", rate)
+            char:SetAttribute("IncomingHealing", 5)
+        end
+    end)
+    
+    if self.Utils then self.Utils:AddConnection(self.SuperRegenConn) end
+    if self.Notifications then
+        self.Notifications:Show("Super Regen", "Enabled - 60x Health Regeneration Rate", 2)
+    end
+end
+
+function Player:StopSuperRegen()
+    self.SuperRegenActive = false
+    if self.SuperRegenConn then
+        self.SuperRegenConn:Disconnect()
+        self.SuperRegenConn = nil
+    end
+    local char = LocalPlayer.Character
+    if char then
+        char:SetAttribute("Regen", nil)
+        char:SetAttribute("IncomingHealing", nil)
+    end
+    if self.Notifications then
+        self.Notifications:Show("Super Regen", "Disabled", 2)
+    end
+end
+
+-- ============================================
+-- IRON SKIN / DAMAGE REDUCTION (GUARDIAN CLASS MECHANIC)
+-- ============================================
+function Player:StartDamageReduction(reductionPercent)
+    self.DamageReductionActive = true
+    self.DamageReductionValue = (reductionPercent or 75) / 100
+    
+    if self.DamageReductionConn then
+        self.DamageReductionConn:Disconnect()
+        self.DamageReductionConn = nil
+    end
+    
+    self.DamageReductionConn = RunService.Heartbeat:Connect(function()
+        if not self.DamageReductionActive then return end
+        local char = LocalPlayer.Character
+        if char then
+            char:SetAttribute("DamageReduction", self.DamageReductionValue)
+        end
+    end)
+    
+    if self.Utils then self.Utils:AddConnection(self.DamageReductionConn) end
+    if self.Notifications then
+        self.Notifications:Show("Iron Skin", "Enabled - Taking " .. math.floor((1 - self.DamageReductionValue) * 100) .. "% damage", 2)
+    end
+end
+
+function Player:StopDamageReduction()
+    self.DamageReductionActive = false
+    if self.DamageReductionConn then
+        self.DamageReductionConn:Disconnect()
+        self.DamageReductionConn = nil
+    end
+    local char = LocalPlayer.Character
+    if char then
+        char:SetAttribute("DamageReduction", nil)
+    end
+    if self.Notifications then
+        self.Notifications:Show("Iron Skin", "Disabled", 2)
+    end
+end
+
+-- ============================================
+-- PSYCHIC FORCEFIELD SHIELD (PSYCHIC CLASS MECHANIC)
+-- ============================================
+function Player:StartPsychicShield(shieldHp)
+    self.PsychicShieldActive = true
+    local hp = shieldHp or 100
+    
+    if self.PsychicShieldConn then
+        self.PsychicShieldConn:Disconnect()
+        self.PsychicShieldConn = nil
+    end
+    
+    self.PsychicShieldConn = RunService.Heartbeat:Connect(function()
+        if not self.PsychicShieldActive then return end
+        local char = LocalPlayer.Character
+        if char then
+            char:SetAttribute("PsychicShieldHealth", hp)
+        end
+    end)
+    
+    if self.Utils then self.Utils:AddConnection(self.PsychicShieldConn) end
+    if self.Notifications then
+        self.Notifications:Show("Psychic Shield", "Enabled - Forcefield barrier active", 2)
+    end
+end
+
+function Player:StopPsychicShield()
+    self.PsychicShieldActive = false
+    if self.PsychicShieldConn then
+        self.PsychicShieldConn:Disconnect()
+        self.PsychicShieldConn = nil
+    end
+    local char = LocalPlayer.Character
+    if char then
+        char:SetAttribute("PsychicShieldHealth", nil)
+    end
+    if self.Notifications then
+        self.Notifications:Show("Psychic Shield", "Disabled", 2)
+    end
+end
+
+-- ============================================
+-- STATUS IMMUNITY (VANGUARD CLASS MECHANIC)
+-- ============================================
+function Player:StartStatusImmunity()
+    self.StatusImmunityActive = true
+    
+    if self.StatusImmunityConn then
+        self.StatusImmunityConn:Disconnect()
+        self.StatusImmunityConn = nil
+    end
+    
+    self.StatusImmunityConn = RunService.Heartbeat:Connect(function()
+        if not self.StatusImmunityActive then return end
+        local char = LocalPlayer.Character
+        if char then
+            char:SetAttribute("NegativeStatusResistance", 1.0)
+        end
+    end)
+    
+    if self.Utils then self.Utils:AddConnection(self.StatusImmunityConn) end
+    if self.Notifications then
+        self.Notifications:Show("Status Immunity", "Enabled - Immune to Bleed, Fire & Poison", 2)
+    end
+end
+
+function Player:StopStatusImmunity()
+    self.StatusImmunityActive = false
+    if self.StatusImmunityConn then
+        self.StatusImmunityConn:Disconnect()
+        self.StatusImmunityConn = nil
+    end
+    local char = LocalPlayer.Character
+    if char then
+        char:SetAttribute("NegativeStatusResistance", nil)
+    end
+    if self.Notifications then
+        self.Notifications:Show("Status Immunity", "Disabled", 2)
+    end
+end
+
+-- ============================================
+-- INSTANT REVIVE & NO COOLDOWN (MEDIC CLASS MECHANIC)
+-- ============================================
+function Player:StartInstantRevive()
+    self.InstantReviveActive = true
+    
+    if self.InstantReviveConn then
+        self.InstantReviveConn:Disconnect()
+        self.InstantReviveConn = nil
+    end
+    
+    self.InstantReviveConn = RunService.Heartbeat:Connect(function()
+        if not self.InstantReviveActive then return end
+        local char = LocalPlayer.Character
+        if char then
+            char:SetAttribute("ReviveSpeed", 1000)
+            char:SetAttribute("ReviveCD", 0)
+            char:SetAttribute("SelfReviveCD", 0)
+        end
+    end)
+    
+    if self.Utils then self.Utils:AddConnection(self.InstantReviveConn) end
+    if self.Notifications then
+        self.Notifications:Show("Instant Revive", "Enabled - Instant revive & 0s cooldown", 2)
+    end
+end
+
+function Player:StopInstantRevive()
+    self.InstantReviveActive = false
+    if self.InstantReviveConn then
+        self.InstantReviveConn:Disconnect()
+        self.InstantReviveConn = nil
+    end
+    local char = LocalPlayer.Character
+    if char then
+        char:SetAttribute("ReviveSpeed", nil)
+        char:SetAttribute("ReviveCD", nil)
+        char:SetAttribute("SelfReviveCD", nil)
+    end
+    if self.Notifications then
+        self.Notifications:Show("Instant Revive", "Disabled", 2)
+    end
+end
+
+-- ============================================
+-- MEGA MAP REVEAL (EXPLORER CLASS MECHANIC)
+-- ============================================
+function Player:StartMegaMapReveal(multiplier)
+    self.MegaMapRevealActive = true
+    local mult = multiplier or 10
+    
+    if self.MegaMapRevealConn then
+        self.MegaMapRevealConn:Disconnect()
+        self.MegaMapRevealConn = nil
+    end
+    
+    self.MegaMapRevealConn = RunService.Heartbeat:Connect(function()
+        if not self.MegaMapRevealActive then return end
+        local char = LocalPlayer.Character
+        if char then
+            char:SetAttribute("RevealSize", mult)
+        end
+    end)
+    
+    if self.Utils then self.Utils:AddConnection(self.MegaMapRevealConn) end
+    if self.Notifications then
+        self.Notifications:Show("Mega Reveal", "Enabled - Fog clears 10x faster", 2)
+    end
+end
+
+function Player:StopMegaMapReveal()
+    self.MegaMapRevealActive = false
+    if self.MegaMapRevealConn then
+        self.MegaMapRevealConn:Disconnect()
+        self.MegaMapRevealConn = nil
+    end
+    local char = LocalPlayer.Character
+    if char then
+        char:SetAttribute("RevealSize", nil)
+    end
+    if self.Notifications then
+        self.Notifications:Show("Mega Reveal", "Disabled", 2)
+    end
+end
+
+-- ============================================
 -- CHARACTER RESPAWN HANDLER
 -- ============================================
 function Player:SetupRespawnHandler()
@@ -615,6 +1088,30 @@ function Player:SetupRespawnHandler()
         end
         if self.AntiHungerActive then
             self:StartAntiHungerDrain()
+        end
+        if self.AutoHealActive then
+            self:StartAutoHeal()
+        end
+        if self.InstantHealActive then
+            self:StartInstantHeal()
+        end
+        if self.SuperRegenActive then
+            self:StartSuperRegen()
+        end
+        if self.DamageReductionActive then
+            self:StartDamageReduction(self.DamageReductionValue * 100)
+        end
+        if self.PsychicShieldActive then
+            self:StartPsychicShield()
+        end
+        if self.StatusImmunityActive then
+            self:StartStatusImmunity()
+        end
+        if self.InstantReviveActive then
+            self:StartInstantRevive()
+        end
+        if self.MegaMapRevealActive then
+            self:StartMegaMapReveal()
         end
     end)
 end

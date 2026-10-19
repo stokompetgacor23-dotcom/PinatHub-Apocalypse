@@ -128,6 +128,30 @@ function Network:FirePickupItem(item)
 end
 
 -- =======================================================
+-- ADJUST BACKPACK (DIRECT TO BAG PICKUP)
+-- =======================================================
+function Network:FireAdjustBackpack(item)
+    if not item or not item.Parent then return false end
+    
+    local success = false
+    if self.Remotes.adjustBackpack then
+        local ok = pcall(function()
+            self.Remotes.adjustBackpack:FireServer(item)
+        end)
+        if ok then success = true end
+    end
+    
+    if not success and self.Remotes.pickUpItem then
+        local ok = pcall(function()
+            self.Remotes.pickUpItem:FireServer(item)
+        end)
+        if ok then success = true end
+    end
+    
+    return success
+end
+
+-- =======================================================
 -- DROP TOOL
 -- =======================================================
 function Network:FireDropTool(tool, pivot)
