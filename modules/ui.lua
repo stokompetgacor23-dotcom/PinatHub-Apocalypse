@@ -158,6 +158,8 @@ function UI:Init(modules)
     self.Player = modules.player or modules.Player
     self.AutoPickup = modules.autoPickup or modules.AutoPickup
     self.KillAura = modules.killaura or modules.KillAura
+    self.WeaponMods = modules.weaponMods or modules.WeaponMods
+    self.FakeClass = modules.fakeClass or modules.FakeClass
     
     if not self.Config then
         print("ERROR: Config module not found!")
@@ -418,6 +420,11 @@ function UI:BuildVisualsTab(tab)
     itemSection:Toggle({ Title = "All Items Distance", Value = false, Callback = function(value)
         if esp and esp.SetAllItemDistances then esp:SetAllItemDistances(value) end
     end })
+    itemSection:Toggle({ Title = "Item Tier Colors (Game Rarity)", Value = false, Callback = function(value)
+        if config.SetToggle then config:SetToggle("ItemTierColors", value) end
+        if esp and esp.RefreshAll then esp:RefreshAll() end
+        if self.Notifications then self.Notifications:Show("Item Tier Colors", value and "Enabled - Rarity Colors ON" or "Disabled", 2) end
+    end })
     itemSection:Divider()
 
     -- Category Specific Toggles
@@ -551,6 +558,302 @@ function UI:BuildPlayerTab(tab)
             if self.Notifications then self.Notifications:Show("Bunny Hop", "Disabled", 2) end
         end
     end })
+
+    local survivalSection = tab:Section({ Title = "Survival & Game Modifiers" })
+    
+    survivalSection:Toggle({ Title = "Anti-Hunger Drain", Value = false, Callback = function(v)
+        toggles.AntiHungerDrain = v
+        if v then
+            if playerModule and playerModule.StartAntiHungerDrain then playerModule:StartAntiHungerDrain() end
+            if self.Notifications then self.Notifications:Show("Anti Hunger", "Enabled - Hunger drain frozen!", 2) end
+        else
+            if playerModule and playerModule.StopAntiHungerDrain then playerModule:StopAntiHungerDrain() end
+            if self.Notifications then self.Notifications:Show("Anti Hunger", "Disabled", 2) end
+        end
+    end })
+    
+    survivalSection:Toggle({ Title = "Instant Proximity Prompts (Fast Use)", Value = false, Callback = function(v)
+        toggles.InstantProximityPrompt = v
+        if v then
+            if playerModule and playerModule.StartInstantProximityPrompt then playerModule:StartInstantProximityPrompt() end
+            if self.Notifications then self.Notifications:Show("Proximity Speed", "Enabled (1000x speed)", 2) end
+        else
+            if playerModule and playerModule.StopInstantProximityPrompt then playerModule:StopInstantProximityPrompt() end
+            if self.Notifications then self.Notifications:Show("Proximity Speed", "Disabled", 2) end
+        end
+    end })
+    
+    survivalSection:Toggle({ Title = "Native Item ESP (Built-in Game Highlight)", Value = false, Callback = function(v)
+        toggles.NativeItemESP = v
+        if v then
+            if playerModule and playerModule.StartNativeItemESP then playerModule:StartNativeItemESP() end
+            if self.Notifications then self.Notifications:Show("Native Item ESP", "Enabled - Game highlight active!", 2) end
+        else
+            if playerModule and playerModule.StopNativeItemESP then playerModule:StopNativeItemESP() end
+            if self.Notifications then self.Notifications:Show("Native Item ESP", "Disabled", 2) end
+        end
+    end })
+
+    -- ============================================
+    -- FAKE CLASS & PERKS SIMULATOR (GAME ENGINE STRUCTURE)
+    -- ============================================
+    local fakeClass = self.FakeClass
+    local classSection = tab:Section({ Title = "Fake Class & Perks (Game Dump Structure)" })
+    classSection:Paragraph({
+        Title = "Game Class & Perk Simulator",
+        Desc = "Applies real-time stats, abilities, and perks of all 24 classes directly from ReplicatedStorage.GameInfo.Classes & Perks, or activate the GOD HYBRID (all classes combined)."
+    })
+    
+    local classList = (config and config.Classes) or (fakeClass and fakeClass.ClassList) or {"GOD HYBRID"}
+    local perkList = (config and config.Perks) or (fakeClass and fakeClass.PerkList) or {"Specialist"}
+    
+    classSection:Dropdown({
+        Title = "Select Class",
+        Values = classList,
+        Default = 1,
+        Callback = function(v)
+            options.SelectedClass = v
+            if toggles.FakeClass and fakeClass then
+                fakeClass:ApplyClass(v, options.ClassLevel)
+            end
+        end
+    })
+    
+    classSection:Slider({
+        Title = "Class Level",
+        Value = { Min = 1, Max = 3, Default = options.ClassLevel or 3 },
+        Callback = function(v)
+            options.ClassLevel = v
+            if toggles.FakeClass and fakeClass then
+                fakeClass:ApplyClass(options.SelectedClass, v)
+            end
+        end
+    })
+    
+    classSection:Toggle({
+        Title = "Apply Fake Class & Stats",
+        Value = false,
+        Callback = function(v)
+            toggles.FakeClass = v
+            if v then
+                if fakeClass then
+                    fakeClass:ApplyClass(options.SelectedClass, options.ClassLevel)
+                end
+                if self.Notifications then
+                    self.Notifications:Show("Fake Class", "Applied: " .. (options.SelectedClass or "GOD HYBRID") .. " (Lvl " .. (options.ClassLevel or 3) .. ")", 2)
+                end
+            else
+                if fakeClass then
+                    fakeClass:RemoveClass()
+                end
+                if self.Notifications then
+                    self.Notifications:Show("Fake Class", "Removed", 2)
+                end
+            end
+        end
+    })
+    
+    classSection:Toggle({
+        Title = "Force Max Class Level 3",
+        Value = false,
+        Callback = function(v)
+            toggles.ForceMaxClassLevel = v
+            if fakeClass then
+                fakeClass.ForceMaxLevelActive = v
+                if v then
+                    LocalPlayer:SetAttribute("ClassLevel", 3)
+                end
+            end
+            if self.Notifications then
+                self.Notifications:Show("Max Level 3", v and "Enabled - Drone Self-Revive & Crafting Tier 3 Unlocked" or "Disabled", 2)
+            end
+        end
+    })
+    
+    classSection:Divider()
+    
+    classSection:Dropdown({
+        Title = "Select Perk",
+        Values = perkList,
+        Default = 1,
+        Callback = function(v)
+            options.SelectedPerk = v
+            if toggles.PerkBypass and fakeClass then
+                fakeClass:ApplyPerk(v)
+            end
+        end
+    })
+    
+    classSection:Toggle({
+        Title = "Apply Perk Bypass",
+        Value = false,
+        Callback = function(v)
+            toggles.PerkBypass = v
+            if v then
+                if fakeClass then
+                    fakeClass:ApplyPerk(options.SelectedPerk)
+                end
+                if self.Notifications then
+                    self.Notifications:Show("Perk Bypass", "Applied: " .. (options.SelectedPerk or "Specialist"), 2)
+                end
+            else
+                if fakeClass then
+                    fakeClass:RemovePerk()
+                end
+                if self.Notifications then
+                    self.Notifications:Show("Perk Bypass", "Removed", 2)
+                end
+            end
+        end
+    })
+    
+    classSection:Toggle({
+        Title = "All Perks Active (God Perks)",
+        Value = false,
+        Callback = function(v)
+            toggles.AllPerksActive = v
+            if v then
+                if fakeClass then
+                    fakeClass:ApplyAllPerks()
+                end
+                if self.Notifications then
+                    self.Notifications:Show("All Perks Active", "Enabled - All 21 Perk Passives Applied!", 2)
+                end
+            else
+                if fakeClass then
+                    fakeClass:RemoveAllPerks()
+                end
+                if self.Notifications then
+                    self.Notifications:Show("All Perks Active", "Disabled", 2)
+                end
+            end
+        end
+    })
+    
+    -- ============================================
+    -- GAME MECHANICS BYPASSES (INTERNAL ENGINE BYPASSES)
+    -- ============================================
+    local bypassSection = tab:Section({ Title = "Game Mechanics Bypasses" })
+    bypassSection:Paragraph({
+        Title = "Internal Engine Bypasses",
+        Desc = "Overrides game attributes to bypass cooldowns, mob slowdowns, hitbox hit registers, and action lockouts."
+    })
+    
+    bypassSection:Toggle({
+        Title = "Infinite Ammo (Bullet Preservation)",
+        Value = false,
+        Callback = function(v)
+            toggles.InfiniteAmmo = v
+            if v then
+                if fakeClass then fakeClass:StartInfiniteAmmo() end
+                if self.Notifications then self.Notifications:Show("Infinite Ammo", "Enabled - BulletPreserveChance = 1.0", 2) end
+            else
+                if fakeClass then fakeClass:StopInfiniteAmmo() end
+                if self.Notifications then self.Notifications:Show("Infinite Ammo", "Disabled", 2) end
+            end
+        end
+    })
+    
+    bypassSection:Toggle({
+        Title = "Backpack Unlocker (No Action Lock)",
+        Value = false,
+        Callback = function(v)
+            toggles.BackpackUnlocker = v
+            if v then
+                if fakeClass then fakeClass:StartBackpackUnlocker() end
+                if self.Notifications then self.Notifications:Show("Backpack Unlock", "Enabled - Swap weapons & items freely!", 2) end
+            else
+                if fakeClass then fakeClass:StopBackpackUnlocker() end
+                if self.Notifications then self.Notifications:Show("Backpack Unlock", "Disabled", 2) end
+            end
+        end
+    })
+    
+    bypassSection:Toggle({
+        Title = "Anti-Slowdown (Run While Healing & No Mob Drag)",
+        Value = false,
+        Callback = function(v)
+            toggles.AntiSlowdown = v
+            if v then
+                if fakeClass then fakeClass:StartAntiSlowdown() end
+                if self.Notifications then self.Notifications:Show("Anti-Slowdown", "Enabled - No zombie claw drag & heal sprint", 2) end
+            else
+                if fakeClass then fakeClass:StopAntiSlowdown() end
+                if self.Notifications then self.Notifications:Show("Anti-Slowdown", "Disabled", 2) end
+            end
+        end
+    })
+    
+    bypassSection:Toggle({
+        Title = "Untouchable (Godmode Melee Iframes)",
+        Value = false,
+        Callback = function(v)
+            toggles.Untouchable = v
+            if v then
+                if fakeClass then fakeClass:StartUntouchable() end
+                if self.Notifications then self.Notifications:Show("Untouchable", "Enabled - HitboxService attacks pass through!", 2) end
+            else
+                if fakeClass then fakeClass:StopUntouchable() end
+                if self.Notifications then self.Notifications:Show("Untouchable", "Disabled", 2) end
+            end
+        end
+    })
+    
+    bypassSection:Toggle({
+        Title = "Untargetable (Mob Blindness)",
+        Value = false,
+        Callback = function(v)
+            toggles.Untargetable = v
+            if v then
+                if fakeClass then fakeClass:StartUntargetable() end
+                if self.Notifications then self.Notifications:Show("Untargetable", "Enabled - Zombies & Turrets ignore you", 2) end
+            else
+                if fakeClass then fakeClass:StopUntargetable() end
+                if self.Notifications then self.Notifications:Show("Untargetable", "Disabled", 2) end
+            end
+        end
+    })
+    
+    bypassSection:Toggle({
+        Title = "Super Telekinesis Drag Range",
+        Value = false,
+        Callback = function(v)
+            toggles.SuperDrag = v
+            if v then
+                if fakeClass then fakeClass:StartSuperDrag(options.SuperDragRange) end
+                if self.Notifications then self.Notifications:Show("Super Drag", "Enabled - Drag objects across the map!", 2) end
+            else
+                if fakeClass then fakeClass:StopSuperDrag() end
+                if self.Notifications then self.Notifications:Show("Super Drag", "Disabled", 2) end
+            end
+        end
+    })
+    
+    bypassSection:Slider({
+        Title = "Drag Range (Studs)",
+        Value = { Min = 50, Max = 1000, Default = options.SuperDragRange or 500 },
+        Callback = function(v)
+            options.SuperDragRange = v
+            if toggles.SuperDrag and fakeClass then
+                fakeClass:StartSuperDrag(v)
+            end
+        end
+    })
+    
+    bypassSection:Toggle({
+        Title = "Instant Break Scrap & Barrels",
+        Value = false,
+        Callback = function(v)
+            toggles.InstantBreakScrap = v
+            if v then
+                if fakeClass then fakeClass:StartInstantBreakScrap(options.ScrapDamageBoost) end
+                if self.Notifications then self.Notifications:Show("Scrap Boost", "Enabled - 1-Hit Barrels & Scrap Piles!", 2) end
+            else
+                if fakeClass then fakeClass:StopInstantBreakScrap() end
+                if self.Notifications then self.Notifications:Show("Scrap Boost", "Disabled", 2) end
+            end
+        end
+    })
 end
 
 -- ============================================
@@ -622,6 +925,16 @@ function UI:BuildCombatTab(tab)
         Callback = function(v) 
             options.KillAuraPriority = v
             if killAura and killAura.SetPriority then killAura:SetPriority(v) end
+        end 
+    })
+
+    killAuraSection:Dropdown({ 
+        Title = "Target Mode", 
+        Values = { "Mobs", "Players", "Both" }, 
+        Default = 1, 
+        Callback = function(v) 
+            options.KillAuraTargetMode = v
+            if killAura and killAura.SetTargetMode then killAura:SetTargetMode(v) end
         end 
     })
     
@@ -718,6 +1031,90 @@ function UI:BuildCombatTab(tab)
     aimbotSection:Slider({ Title = "Aimbot Range", Value = { Min = 50, Max = 500, Default = options.AimbotRange or 200 }, Callback = function(v) options.AimbotRange = v end })
     aimbotSection:Slider({ Title = "Aimbot FOV", Value = { Min = 30, Max = 300, Default = options.AimbotFOV or 100 }, Callback = function(v) options.AimbotFOV = v end })
     aimbotSection:Slider({ Title = "Smoothness", Value = { Min = 0, Max = 1, Default = options.AimbotSmoothness or 0.3, Decimals = 1 }, Callback = function(v) options.AimbotSmoothness = v end })
+
+    -- Weapon Mods Section (Game Stats Engine)
+    local weaponMods = self.WeaponMods
+    local gunModSection = tab:Section({ Title = "Gun Modifications (Stats & Engine)" })
+    gunModSection:Paragraph({
+        Title = "Game Stat Modifiers",
+        Desc = "Applies real-time modifiers to current equipped and inventory firearms using game Stats configuration."
+    })
+    
+    gunModSection:Toggle({ Title = "No Recoil", Value = false, Callback = function(v)
+        toggles.NoRecoil = v
+        if v then
+            if weaponMods and weaponMods.StartNoRecoil then weaponMods:StartNoRecoil() end
+            if notifications then notifications:Show("No Recoil", "Enabled", 2) end
+        else
+            if weaponMods and weaponMods.StopNoRecoil then weaponMods:StopNoRecoil() end
+            if notifications then notifications:Show("No Recoil", "Disabled", 2) end
+        end
+    end })
+    
+    gunModSection:Toggle({ Title = "No Spread", Value = false, Callback = function(v)
+        toggles.NoSpread = v
+        if v then
+            if weaponMods and weaponMods.StartNoSpread then weaponMods:StartNoSpread() end
+            if notifications then notifications:Show("No Spread", "Enabled - Laser accuracy!", 2) end
+        else
+            if weaponMods and weaponMods.StopNoSpread then weaponMods:StopNoSpread() end
+            if notifications then notifications:Show("No Spread", "Disabled", 2) end
+        end
+    end })
+    
+    gunModSection:Toggle({ Title = "Rapid Fire", Value = false, Callback = function(v)
+        toggles.RapidFire = v
+        if v then
+            if weaponMods and weaponMods.StartRapidFire then weaponMods:StartRapidFire() end
+            if notifications then notifications:Show("Rapid Fire", "Enabled - Max firerate!", 2) end
+        else
+            if weaponMods and weaponMods.StopRapidFire then weaponMods:StopRapidFire() end
+            if notifications then notifications:Show("Rapid Fire", "Disabled", 2) end
+        end
+    end })
+    
+    gunModSection:Toggle({ Title = "Fast Reload", Value = false, Callback = function(v)
+        toggles.FastReload = v
+        if v then
+            if weaponMods and weaponMods.StartFastReload then weaponMods:StartFastReload() end
+            if notifications then notifications:Show("Fast Reload", "Enabled - Instant reload!", 2) end
+        else
+            if weaponMods and weaponMods.StopFastReload then weaponMods:StopFastReload() end
+            if notifications then notifications:Show("Fast Reload", "Disabled", 2) end
+        end
+    end })
+    
+    gunModSection:Divider()
+    
+    -- Silent Aim Section
+    local silentAimSection = tab:Section({ Title = "Silent Aim (Game Aim Hook)" })
+    silentAimSection:Paragraph({
+        Title = "Native Silent Aim",
+        Desc = "Hooks _G.getCurrentAutoTargetPosition to redirect bullet trajectories to target heads/bodies silently without snapping your camera."
+    })
+    
+    silentAimSection:Toggle({ Title = "Silent Aim", Value = false, Callback = function(v)
+        toggles.SilentAim = v
+        if v then
+            if weaponMods and weaponMods.StartSilentAim then weaponMods:StartSilentAim() end
+            if notifications then notifications:Show("Silent Aim", "Enabled", 2) end
+        else
+            if weaponMods and weaponMods.StopSilentAim then weaponMods:StopSilentAim() end
+            if notifications then notifications:Show("Silent Aim", "Disabled", 2) end
+        end
+    end })
+    
+    silentAimSection:Dropdown({ Title = "Target Mode", Values = { "Mobs", "Players", "Both" }, Default = 1, Callback = function(v)
+        options.SilentAimTargetMode = v
+    end })
+    
+    silentAimSection:Dropdown({ Title = "Hit Part", Values = { "Head", "HumanoidRootPart", "Torso" }, Default = 1, Callback = function(v)
+        options.SilentAimPart = v
+    end })
+    
+    silentAimSection:Slider({ Title = "Silent Aim FOV", Value = { Min = 50, Max = 800, Default = options.SilentAimFOV or 250 }, Callback = function(v)
+        options.SilentAimFOV = v
+    end })
 end
 
 -- ============================================
@@ -817,6 +1214,54 @@ function UI:BuildExploitsTab(tab)
     autoOpenCrateSection:Slider({ Title = "Auto Open Range", Value = { Min = 5, Max = 50, Default = options.AutoOpenCrateRange or 15 }, Callback = function(v)
         options.AutoOpenCrateRange = v
     end })
+
+    -- Map Exploration & Fog Clear (Game Remote Exploit)
+    local mapSection = tab:Section({ Title = "Map & Fog Exploits" })
+    mapSection:Paragraph({
+        Title = "Full Map Fog Unlock",
+        Desc = "Fires FogTouched remotes for all map sectors, revealing the entire minimap and clearing fog barriers across the world."
+    })
+    mapSection:Button({
+        Title = "Unlock Entire Map & Clear Fog",
+        Callback = function()
+            local playerModule = self.Player
+            if playerModule and playerModule.UnlockEntireMap then
+                local count = playerModule:UnlockEntireMap()
+                if notifications then
+                    notifications:Show("Map Explored", "Unlocked " .. count .. " fog sectors successfully!", 3)
+                end
+            elseif self.Utils and self.Utils.UnlockEntireMap then
+                local count = self.Utils:UnlockEntireMap()
+                if notifications then
+                    notifications:Show("Map Explored", "Unlocked " .. count .. " fog sectors successfully!", 3)
+                end
+            end
+        end
+    })
+
+    -- Content Creator / Troll Toolkit
+    local trollSection = tab:Section({ Title = "Content Creator / Troll Toolkit" })
+    local isAllowed = network and network.IsTrollAllowed and network:IsTrollAllowed()
+    if isAllowed then
+        trollSection:Paragraph({ Title = "Status: ALLOWED", Desc = "Server validated your creator/admin status for Troll remotes." })
+        trollSection:Button({ Title = "Spawn Zombie", Callback = function()
+            network:TrollSpawnZombie("Regular", 1)
+        end })
+        trollSection:Button({ Title = "Spawn Brute", Callback = function()
+            network:TrollSpawnZombie("Brute", 1)
+        end })
+        trollSection:Button({ Title = "Spawn AA-12 Gun", Callback = function()
+            network:TrollSpawnItem("AA-12", 1)
+        end })
+        trollSection:Button({ Title = "Toggle Creator Fly", Callback = function()
+            network:TrollToggleFly()
+        end })
+    else
+        trollSection:Paragraph({
+            Title = "Status: Whitelist Only",
+            Desc = "Troll Remotes require Creator/Admin whitelist permissions on the server."
+        })
+    end
 end
 
 -- ============================================

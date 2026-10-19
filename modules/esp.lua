@@ -254,16 +254,21 @@ function ESP:CreateMobESP(char)
     local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
     if not root then return end
 
+    local isBandit = char:GetAttribute("Bandit") or char.Name:lower():find("bandit")
+    local isBoss = char:GetAttribute("Boss") or table.find({"Experiment", "Harbinger", "Juggernaut", "Butcher", "Phaser"}, char.Name)
+    local mobFillColor = isBoss and Color3.fromRGB(255, 0, 200) or (isBandit and Color3.fromRGB(255, 140, 0) or Color3.fromRGB(220, 0, 0))
+    local mobOutlineColor = isBoss and Color3.fromRGB(255, 200, 255) or (isBandit and Color3.fromRGB(255, 220, 150) or Color3.fromRGB(255, 185, 185))
+    local mobPrefix = isBoss and "👑 [BOSS] " or (isBandit and "🔫 [BANDIT] " or "")
+
     local espTable = { Root = root }
-    local mobColors = { fill = Color3.fromRGB(220, 0, 0), outline = Color3.fromRGB(255, 185, 185) }
 
     if self.MobOptions.Chams then
         local highlight = Instance.new("Highlight")
         highlight.Name = "MobESP_Highlight"
         highlight.Adornee = char
-        highlight.FillColor = mobColors.fill
+        highlight.FillColor = mobFillColor
         highlight.FillTransparency = espConfig.fillTransparency
-        highlight.OutlineColor = mobColors.outline
+        highlight.OutlineColor = mobOutlineColor
         highlight.OutlineTransparency = espConfig.outlineTransparency
         highlight.Parent = char
         espTable.Highlight = highlight
@@ -288,8 +293,8 @@ function ESP:CreateMobESP(char)
         nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
         nameLabel.Position = UDim2.new(0, 0, 0, 0)
         nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = char.Name
-        nameLabel.TextColor3 = mobColors.outline
+        nameLabel.Text = mobPrefix .. char.Name
+        nameLabel.TextColor3 = mobOutlineColor
         nameLabel.TextStrokeTransparency = 0.2
         nameLabel.Font = Enum.Font.GothamBold
         nameLabel.TextSize = espConfig.textSize
@@ -319,6 +324,13 @@ function ESP:CreateMobESP(char)
             connection:Disconnect()
             return
         end
+        local isDead = char:GetAttribute("Dead") or (self.Utils and self.Utils.IsDead and self.Utils:IsDead(char))
+        if isDead then
+            if espTable.Highlight then espTable.Highlight.Enabled = false end
+            if billboard then billboard.Enabled = false end
+            return
+        end
+
         local myChar = LocalPlayer.Character
         local myRoot = myChar and (myChar:FindFirstChild("HumanoidRootPart") or myChar:FindFirstChild("Torso"))
         if not myRoot then return end
@@ -331,9 +343,9 @@ function ESP:CreateMobESP(char)
             local h = Instance.new("Highlight")
             h.Name = "MobESP_Highlight"
             h.Adornee = char
-            h.FillColor = mobColors.fill
+            h.FillColor = mobFillColor
             h.FillTransparency = espConfig.fillTransparency
-            h.OutlineColor = mobColors.outline
+            h.OutlineColor = mobOutlineColor
             h.OutlineTransparency = espConfig.outlineTransparency
             h.Enabled = visible
             h.Parent = char
@@ -347,7 +359,7 @@ function ESP:CreateMobESP(char)
             if nameLabel and self.MobOptions.Name then
                 local hum = char:FindFirstChildOfClass("Humanoid")
                 if hum then
-                    nameLabel.Text = char.Name .. " [" .. math.floor(hum.Health) .. "/" .. math.floor(hum.MaxHealth) .. "]"
+                    nameLabel.Text = mobPrefix .. char.Name .. " [" .. math.floor(hum.Health) .. "/" .. math.floor(hum.MaxHealth) .. "]"
                 end
             end
             if distLabel and self.MobOptions.Distance then
@@ -362,7 +374,7 @@ function ESP:CreateMobESP(char)
     self.MobESPInstances[char] = espTable
 end
 
--- FIX: Detect ALL non-player models (NO hardcoded whitelist)
+-- FIX: Detect mobs and bandits with game attribute support
 function ESP:RefreshMobESP()
     for char, _ in pairs(self.MobESPInstances) do
         self:RemoveMobESP(char)
@@ -377,7 +389,14 @@ function ESP:RefreshMobESP()
     
     for _, child in ipairs(charactersFolder:GetChildren()) do
         if child:IsA("Model") and not playerCharSet[child] then
-            self:CreateMobESP(child)
+            local isMob = true
+            if self.Utils and self.Utils.IsZombieOrBandit then
+                isMob = self.Utils:IsZombieOrBandit(child)
+            end
+            local isDead = child:GetAttribute("Dead") or (self.Utils and self.Utils.IsDead and self.Utils:IsDead(child))
+            if isMob and not isDead then
+                self:CreateMobESP(child)
+            end
         end
     end
 end
@@ -732,15 +751,23 @@ function ESP:CreateCategoryESP(sys, item)
     local mainPart = getItemMainPart(item)
     if not mainPart then return end
 
+    local tier = (self.Utils and self.Utils.GetItemTier) and self.Utils:GetItemTier(item.Name)
+    local tierColor = (tier and self.Utils and self.Utils.ItemTierColors) and self.Utils.ItemTierColors[tier]
+    local useTier = (self.Config and self.Config.GetToggle and self.Config:GetToggle("ItemTierColors")) and tierColor
+    local fillColor = useTier and tierColor or sys.colors.fill
+    local outlineColor = useTier and Color3.fromRGB(255, 255, 255) or sys.colors.outline
+    local textColor = useTier and tierColor or sys.colors.text
+    local tierTag = (tier and tier > 0) and string.format("[T%d] ", tier) or ""
+
     local espTable = { MainPart = mainPart }
 
     if sys.vars.Chams then
         local highlight = Instance.new("Highlight")
         highlight.Name = sys.key .. "_ESP"
         highlight.Adornee = item
-        highlight.FillColor = sys.colors.fill
+        highlight.FillColor = fillColor
         highlight.FillTransparency = espConfig.fillTransparency
-        highlight.OutlineColor = sys.colors.outline
+        highlight.OutlineColor = outlineColor
         highlight.OutlineTransparency = espConfig.outlineTransparency
         highlight.Parent = item
         espTable.Highlight = highlight
@@ -767,8 +794,8 @@ function ESP:CreateCategoryESP(sys, item)
         nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
         nameLabel.Position = UDim2.new(0, 0, 0, 0)
         nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = "[" .. sys.key .. "] " .. displayName
-        nameLabel.TextColor3 = sys.colors.text
+        nameLabel.Text = tierTag .. "[" .. sys.key .. "] " .. displayName
+        nameLabel.TextColor3 = textColor
         nameLabel.Font = Enum.Font.GothamBold
         nameLabel.TextSize = espConfig.textSize
         nameLabel.Visible = sys.vars.Name
@@ -808,9 +835,9 @@ function ESP:CreateCategoryESP(sys, item)
             local h = Instance.new("Highlight")
             h.Name = sys.key .. "_ESP"
             h.Adornee = item
-            h.FillColor = sys.colors.fill
+            h.FillColor = fillColor
             h.FillTransparency = espConfig.fillTransparency
-            h.OutlineColor = sys.colors.outline
+            h.OutlineColor = outlineColor
             h.OutlineTransparency = espConfig.outlineTransparency
             h.Enabled = visible
             h.Parent = item
@@ -931,6 +958,7 @@ end
 
 function ESP:CreateCrateESP(crate)
     if not crate:IsA("Model") then return end
+    if crate:GetAttribute("Opened") then return end
     if self.CrateESPInstances[crate] then return end
     
     local mainPart = self:GetCrateMainPart(crate)
@@ -994,7 +1022,8 @@ function ESP:CreateCrateESP(crate)
     
     local connection
     connection = RunService.Heartbeat:Connect(function()
-        if not crate or not crate.Parent then
+        if not crate or not crate.Parent or crate:GetAttribute("Opened") then
+            self:RemoveCrateESP(crate)
             connection:Disconnect()
             return
         end
@@ -1039,9 +1068,11 @@ function ESP:RefreshCrateESP()
         self:RemoveCrateESP(crate)
     end
     if not self.CrateOptions.ESP then return end
-    local allCrates = self:FindAllCrates()
+    local allCrates = (self.Utils and self.Utils.FindAllCrates and self.Utils:FindAllCrates()) or self:FindAllCrates()
     for _, crate in ipairs(allCrates) do
-        self:CreateCrateESP(crate)
+        if not crate:GetAttribute("Opened") then
+            self:CreateCrateESP(crate)
+        end
     end
 end
 
@@ -1180,6 +1211,7 @@ end
 -- ============================================
 function ESP:Init(modules)
     self.Config = modules.config or modules.Config
+    self.Utils = modules.utils or modules.Utils
     if self.Config then
         self.Options = self.Config:GetOptions()
 

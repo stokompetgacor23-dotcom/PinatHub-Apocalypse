@@ -102,17 +102,31 @@ function Farm:FindNearestZombie()
     local jarakTerdekat = range + 1
     
     for _, mob in ipairs(mobFolder:GetChildren()) do
+        if mob == char then continue end
+        
         local isZombie = false
-        for _, nama in ipairs(mobNames) do
-            if mob.Name == nama then
-                isZombie = true
-                break
+        if self.Utils and self.Utils.IsZombieOrBandit then
+            isZombie = self.Utils:IsZombieOrBandit(mob)
+        elseif mob:GetAttribute("Zombie") or mob:GetAttribute("Bandit") then
+            isZombie = true
+        else
+            for _, nama in ipairs(mobNames) do
+                if mob.Name == nama or string.find(mob.Name, nama) then
+                    isZombie = true
+                    break
+                end
             end
         end
         if not isZombie then continue end
         
+        if self.Utils then
+            if self.Utils:IsDead(mob) or self.Utils:IsUntouchable(mob) then continue end
+        else
+            if mob:GetAttribute("Dead") or mob:GetAttribute("Untouchable") then continue end
+        end
+        
         local mobHrp = self.Utils:GetPlayerRoot(mob)
-        local mobHidup = mob:FindFirstChildOfClass("Humanoid")
+        local mobHidup = mob:FindFirstChildOfClass("Humanoid") or mob:FindFirstChild("MockHumanoid")
         
         if mobHrp and mobHidup and mobHidup.Health > 0 then
             local jarak = (mobHrp.Position - myPos).Magnitude
@@ -327,36 +341,45 @@ function Farm:FindDestroyableStructures()
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return {} end
     
-    local folders = self.Utils:DiscoverFolders()
-    local structuresFolder = folders.structuresFolder
-    if not structuresFolder then return {} end
-    
     local myPos = hrp.Position
     local targets = {}
     local destroyableNames = {"Barrel", "Scrap Pile"}
     
-    for _, child in ipairs(structuresFolder:GetChildren()) do
-        local isTarget = false
-        for _, name in ipairs(destroyableNames) do
-            if child.Name == name then
-                isTarget = true
-                break
+    local candidateFolders = {}
+    local folders = self.Utils:DiscoverFolders()
+    if folders.structuresFolder then table.insert(candidateFolders, folders.structuresFolder) end
+    
+    local droppedItems = Workspace:FindFirstChild("DroppedItems")
+    if droppedItems then table.insert(candidateFolders, droppedItems) end
+    
+    local map = Workspace:FindFirstChild("Map")
+    local crates = map and map:FindFirstChild("Crates")
+    if crates then table.insert(candidateFolders, crates) end
+    
+    for _, folder in ipairs(candidateFolders) do
+        for _, child in ipairs(folder:GetChildren()) do
+            local isTarget = false
+            for _, name in ipairs(destroyableNames) do
+                if child.Name == name or string.find(child.Name, name) then
+                    isTarget = true
+                    break
+                end
             end
-        end
-        
-        if isTarget and child:IsA("Model") then
-            local mainPart = child:FindFirstChild("HumanoidRootPart") 
-                or child:FindFirstChild("PrimaryPart")
-                or child:FindFirstChildWhichIsA("BasePart")
             
-            if mainPart and mainPart.Parent then
-                local dist = (mainPart.Position - myPos).Magnitude
-                if dist <= 15 then
-                    table.insert(targets, {
-                        structure = child,
-                        part = mainPart,
-                        distance = dist
-                    })
+            if isTarget and child:IsA("Model") and not child:GetAttribute("Dead") then
+                local mainPart = child:FindFirstChild("HumanoidRootPart") 
+                    or child.PrimaryPart
+                    or child:FindFirstChildWhichIsA("BasePart")
+                
+                if mainPart and mainPart.Parent then
+                    local dist = (mainPart.Position - myPos).Magnitude
+                    if dist <= 18 then
+                        table.insert(targets, {
+                            structure = child,
+                            part = mainPart,
+                            distance = dist
+                        })
+                    end
                 end
             end
         end
@@ -390,6 +413,10 @@ function Farm:DestroyStructure(structure)
     local tool = self:GetDestroyTool()
     if not tool then return false end
     
+    if self.Network and self.Network.FireToolAttack then
+        return self.Network:FireToolAttack(tool, {structure})
+    end
+    
     local swing = tool:FindFirstChild("Swing")
     local hitTargets = tool:FindFirstChild("HitTargets")
     local remoteClick = tool:FindFirstChild("RemoteClick")
@@ -404,7 +431,9 @@ function Farm:DestroyStructure(structure)
         pcall(function() remoteClick:FireServer(structure) end)
         return true
     end
-    return false
+    
+    pcall(function() tool:Activate() end)
+    return true
 end
 
 function Farm:StartAutoDestroy()
@@ -654,8 +683,12 @@ function Farm:AutoPickupNearCrate(cratePos)
                 if part then
                     local dist = (part.Position - cratePos).Magnitude
                     if dist <= pickupRange then
-                        if self.Network and self.Network.FireAdjustBackpack then
-                            self.Network:FireAdjustBackpack(item)
+                        if self.Network then
+                            if self.Network.FirePickupItem then
+                                self.Network:FirePickupItem(item)
+                            elseif self.Network.FireAdjustBackpack then
+                                self.Network:FireAdjustBackpack(item)
+                            end
                         end
                     end
                 end
@@ -681,11 +714,14 @@ function Farm:StartAutoOpenCrate()
         local options = self.Config:GetOptions()
         local range = options.AutoOpenCrateRange or 15
 
-        local map = Workspace:FindFirstChild("Map")
-        local cratesFolder = map and map:FindFirstChild("Crates")
-        if not cratesFolder then return end
+        local crates = (self.Utils and self.Utils.FindAllCrates) and self.Utils:FindAllCrates()
+        if not crates or #crates == 0 then
+            local map = Workspace:FindFirstChild("Map")
+            local cratesFolder = map and map:FindFirstChild("Crates")
+            crates = cratesFolder and cratesFolder:GetChildren() or {}
+        end
 
-        for _, crate in ipairs(cratesFolder:GetChildren()) do
+        for _, crate in ipairs(crates) do
             if crate:IsA("Model") and not crate:GetAttribute("Opened") and not self.OpenedCrates[crate] then
                 local mainPart = self.Utils:GetCrateMainPart(crate)
                 if mainPart then

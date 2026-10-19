@@ -1,5 +1,6 @@
 -- =======================================================
--- PINATHUB - PLAYER MODULE
+-- PINATHUB - PLAYER MODULE (UPDATED WITH GAME DUMP INTEGRATION)
+-- Integrated with WalkSpeedClient, ExplorerProximityPrompt, LightingClient
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -27,21 +28,32 @@ local Player = {
     InfJumpActive = false,
     JumpConn = nil,
     SpeedHackConn = nil,
+    SpeedValue = 50,
     OriginalWalkSpeed = nil,
+    FullbrightActive = false,
+    FullbrightConn = nil,
+    RemoveFogActive = false,
+    RemoveFogConn = nil,
+    InstantPromptActive = false,
+    InstantPromptConn = nil,
+    NativeItemESPActive = false,
+    AntiHungerActive = false,
+    AntiHungerConn = nil,
     Utils = nil,
     Notifications = nil,
-    Config = nil
+    Config = nil,
+    Network = nil,
 }
 
 -- ============================================
--- SPEED HACK
+-- SPEED HACK (USES GAME'S WALKSPEEDCLIENT ATTRIBUTES + STEPPED)
 -- ============================================
 function Player:StartSpeedHack(speedValue)
+    self.SpeedValue = speedValue or 50
     if self.SpeedHackConn then
         self:StopSpeedHack()
     end
     
-    -- Store original speed if not already
     local char = LocalPlayer.Character
     if char and not self.OriginalWalkSpeed then
         local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -50,17 +62,37 @@ function Player:StartSpeedHack(speedValue)
         end
     end
     
+    -- Apply game's WalkSpeed attribute (WalkSpeedClient calculates: 16 + WalkSpeed)
+    local function applySpeed(targetChar)
+        if not targetChar then return end
+        local bonusSpeed = math.max(0, self.SpeedValue - 16)
+        pcall(function()
+            targetChar:SetAttribute("WalkSpeed", bonusSpeed)
+            targetChar:SetAttribute("SprintSpeed", 1)
+            if _G.updateWalkSpeed then
+                _G.updateWalkSpeed()
+            end
+        end)
+        local hum = targetChar:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum.WalkSpeed = self.SpeedValue
+        end
+    end
+    
+    applySpeed(char)
+    
     self.SpeedHackConn = RunService.Stepped:Connect(function()
-        local char = LocalPlayer.Character
-        if not char then return end
-        local humanoid = char:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.WalkSpeed = speedValue
+        local c = LocalPlayer.Character
+        if c then
+            local hum = c:FindFirstChildOfClass("Humanoid")
+            if hum and hum.WalkSpeed ~= self.SpeedValue then
+                hum.WalkSpeed = self.SpeedValue
+            end
         end
     end)
     
     if self.Utils then self.Utils:AddConnection(self.SpeedHackConn) end
-    print("[SPEED HACK] Enabled - Speed:", speedValue)
+    print("[SPEED HACK] Enabled - Speed:", self.SpeedValue)
 end
 
 function Player:StopSpeedHack()
@@ -71,6 +103,13 @@ function Player:StopSpeedHack()
     
     local char = LocalPlayer.Character
     if char then
+        pcall(function()
+            char:SetAttribute("WalkSpeed", 0)
+            char:SetAttribute("SprintSpeed", 0)
+            if _G.updateWalkSpeed then
+                _G.updateWalkSpeed()
+            end
+        end)
         local humanoid = char:FindFirstChildOfClass("Humanoid")
         if humanoid then
             humanoid.WalkSpeed = self.OriginalWalkSpeed or 16
@@ -102,18 +141,16 @@ function Player:StartNoclip()
             return 
         end
         
-        -- Anti-teleport protection
         local currentCF = root.CFrame
         if self.NoclipLastCFrame then
             local delta = (currentCF.Position - self.NoclipLastCFrame.Position).Magnitude
-            if delta > 8 then
+            if delta > 12 then
                 root.CFrame = self.NoclipLastCFrame
                 currentCF = self.NoclipLastCFrame
             end
         end
         self.NoclipLastCFrame = currentCF
         
-        -- Disable collision on all character parts
         for _, part in ipairs(char:GetDescendants()) do
             if part:IsA("BasePart") and part.CanCollide then
                 part.CanCollide = false
@@ -134,7 +171,6 @@ function Player:StopNoclip()
         self.NoclipConn = nil
     end
     
-    -- Re-enable collision
     local char = LocalPlayer.Character
     if char then
         for _, part in ipairs(char:GetDescendants()) do
@@ -149,83 +185,67 @@ end
 -- ============================================
 -- FLY HACK
 -- ============================================
-function Player:StartFly(flySpeed)
-    self:StopFly()
+function Player:StartFly(speed)
+    if self.FlyActive then return end
+    self.FlySpeed = speed or 50
+    self.FlyActive = true
     
     local char = LocalPlayer.Character
     if not char then return end
     
-    local rootPart = char:FindFirstChild("HumanoidRootPart")
-    if not rootPart then return end
-    
+    local root = char:FindFirstChild("HumanoidRootPart")
     local humanoid = char:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        humanoid.PlatformStand = true
-    end
+    if not root or not humanoid then return end
     
     self.FlyBV = Instance.new("BodyVelocity")
-    self.FlyBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     self.FlyBV.Velocity = Vector3.new(0, 0, 0)
-    self.FlyBV.Parent = rootPart
+    self.FlyBV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    self.FlyBV.Parent = root
     
     self.FlyBG = Instance.new("BodyGyro")
-    self.FlyBG.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-    self.FlyBG.P = 9000
-    self.FlyBG.CFrame = Workspace.CurrentCamera.CFrame
-    self.FlyBG.Parent = rootPart
+    self.FlyBG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    self.FlyBG.CFrame = root.CFrame
+    self.FlyBG.Parent = root
     
-    self.FlyActive = true
-    self.FlySpeed = flySpeed or 50
+    humanoid.PlatformStand = true
     
     self.FlyMoveConn = RunService.RenderStepped:Connect(function()
-        if not self.FlyActive then return end
+        if not self.FlyActive or not self.FlyBV or not self.FlyBG then return end
         
-        local char = LocalPlayer.Character
-        if not char or not char.Parent then
-            self:StopFly()
-            return
-        end
+        local camera = Workspace.CurrentCamera
+        if not camera then return end
         
-        local rootPart = char:FindFirstChild("HumanoidRootPart")
-        if not rootPart then return end
-        
-        local cam = Workspace.CurrentCamera
-        local speed = self.FlySpeed
-        local dir = Vector3.new(0, 0, 0)
-        
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then 
-            dir = dir + cam.CFrame.LookVector 
+        local moveDir = Vector3.new()
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            moveDir = moveDir + camera.CFrame.LookVector
         end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then 
-            dir = dir - cam.CFrame.LookVector 
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            moveDir = moveDir - camera.CFrame.LookVector
         end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then 
-            dir = dir - cam.CFrame.RightVector 
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            moveDir = moveDir - camera.CFrame.RightVector
         end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then 
-            dir = dir + cam.CFrame.RightVector 
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            moveDir = moveDir + camera.CFrame.RightVector
         end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then 
-            dir = dir + Vector3.new(0, 1, 0) 
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            moveDir = moveDir + Vector3.new(0, 1, 0)
         end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then 
-            dir = dir - Vector3.new(0, 1, 0) 
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+            moveDir = moveDir - Vector3.new(0, 1, 0)
         end
         
-        if dir.Magnitude > 0 then 
-            dir = dir.Unit 
+        if moveDir.Magnitude > 0 then
+            self.FlyBV.Velocity = moveDir.Unit * self.FlySpeed
+        else
+            self.FlyBV.Velocity = Vector3.new(0, 0, 0)
         end
         
-        if self.FlyBV then 
-            self.FlyBV.Velocity = dir * speed 
-        end
-        if self.FlyBG then 
-            self.FlyBG.CFrame = cam.CFrame 
-        end
+        self.FlyBG.CFrame = camera.CFrame
     end)
     
     if self.Utils then self.Utils:AddConnection(self.FlyMoveConn) end
-    print("[FLY] Enabled - Speed:", flySpeed)
+    print("[FLY] Enabled - Speed:", self.FlySpeed)
 end
 
 function Player:StopFly()
@@ -236,14 +256,14 @@ function Player:StopFly()
         self.FlyMoveConn = nil
     end
     
-    if self.FlyBV then 
-        self.FlyBV:Destroy() 
-        self.FlyBV = nil 
+    if self.FlyBV then
+        self.FlyBV:Destroy()
+        self.FlyBV = nil
     end
     
-    if self.FlyBG then 
-        self.FlyBG:Destroy() 
-        self.FlyBG = nil 
+    if self.FlyBG then
+        self.FlyBG:Destroy()
+        self.FlyBG = nil
     end
     
     local char = LocalPlayer.Character
@@ -258,9 +278,6 @@ end
 
 function Player:SetFlySpeed(speed)
     self.FlySpeed = speed
-    if self.FlyActive then
-        print("[FLY] Speed updated to:", speed)
-    end
 end
 
 -- ============================================
@@ -272,6 +289,10 @@ function Player:StartAutoSprint()
     pcall(function()
         VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
     end)
+    local char = LocalPlayer.Character
+    if char then
+        char:SetAttribute("SprintingClient", true)
+    end
     print("[AUTO SPRINT] Enabled")
 end
 
@@ -281,6 +302,10 @@ function Player:StopAutoSprint()
     pcall(function()
         VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
     end)
+    local char = LocalPlayer.Character
+    if char then
+        char:SetAttribute("SprintingClient", false)
+    end
     print("[AUTO SPRINT] Disabled")
 end
 
@@ -331,7 +356,6 @@ function Player:StartBunnyHop()
         
         local humanoid = char:FindFirstChildOfClass("Humanoid")
         local root = char:FindFirstChild("HumanoidRootPart")
-        
         if not humanoid or not root then return end
         
         local moveDir = humanoid.MoveDirection
@@ -384,90 +408,177 @@ function Player:StopAntiAFK()
 end
 
 -- ============================================
--- FULLBRIGHT
+-- PERSISTENT FULLBRIGHT (OVERCOMES LIGHTINGCLIENT TWEENS)
 -- ============================================
-local originalLighting = { stored = false }
-
 function Player:StartFullbright()
-    if not originalLighting.stored then
-        originalLighting.Brightness = Lighting.Brightness
-        originalLighting.Ambient = Lighting.Ambient
-        originalLighting.OutdoorAmbient = Lighting.OutdoorAmbient
-        originalLighting.ClockTime = Lighting.ClockTime
-        originalLighting.FogEnd = Lighting.FogEnd
-        originalLighting.FogStart = Lighting.FogStart
-        originalLighting.GlobalShadows = Lighting.GlobalShadows
-        originalLighting.stored = true
-    end
+    if self.FullbrightActive then return end
+    self.FullbrightActive = true
     
-    Lighting.Brightness = 2
-    Lighting.Ambient = Color3.fromRGB(178, 178, 178)
-    Lighting.OutdoorAmbient = Color3.fromRGB(178, 178, 178)
-    Lighting.ClockTime = 14
-    Lighting.FogEnd = 100000
-    Lighting.FogStart = 0
-    Lighting.GlobalShadows = false
-    print("[FULLBRIGHT] Enabled")
+    self.FullbrightConn = RunService.RenderStepped:Connect(function()
+        if not self.FullbrightActive then return end
+        Lighting.Brightness = 2
+        Lighting.Ambient = Color3.fromRGB(180, 180, 180)
+        Lighting.OutdoorAmbient = Color3.fromRGB(180, 180, 180)
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+        Lighting.FogStart = 0
+        Lighting.GlobalShadows = false
+    end)
+    
+    if self.Utils then self.Utils:AddConnection(self.FullbrightConn) end
+    print("[FULLBRIGHT] Enabled (Persistent)")
 end
 
 function Player:StopFullbright()
-    if originalLighting.stored then
-        Lighting.Brightness = originalLighting.Brightness
-        Lighting.Ambient = originalLighting.Ambient
-        Lighting.OutdoorAmbient = originalLighting.OutdoorAmbient
-        Lighting.ClockTime = originalLighting.ClockTime
-        Lighting.FogEnd = originalLighting.FogEnd
-        Lighting.FogStart = originalLighting.FogStart
-        Lighting.GlobalShadows = originalLighting.GlobalShadows
+    self.FullbrightActive = false
+    if self.FullbrightConn then
+        self.FullbrightConn:Disconnect()
+        self.FullbrightConn = nil
     end
+    Lighting.Brightness = 1
+    Lighting.GlobalShadows = true
     print("[FULLBRIGHT] Disabled")
 end
 
 -- ============================================
--- REMOVE FOG
+-- PERSISTENT REMOVE FOG
 -- ============================================
-local originalFog = { stored = false }
-
 function Player:StartRemoveFog()
-    if not originalFog.stored then
-        originalFog.FogEnd = Lighting.FogEnd
-        originalFog.FogStart = Lighting.FogStart
-        originalFog.stored = true
-    end
+    if self.RemoveFogActive then return end
+    self.RemoveFogActive = true
     
-    Lighting.FogEnd = 100000
-    Lighting.FogStart = 0
-    
-    local atm = Lighting:FindFirstChildOfClass("Atmosphere")
-    if atm then
-        if originalFog.AtmDensity == nil then
-            originalFog.AtmDensity = atm.Density
-            originalFog.AtmHaze = atm.Haze
-            originalFog.AtmGlare = atm.Glare
+    self.RemoveFogConn = RunService.RenderStepped:Connect(function()
+        if not self.RemoveFogActive then return end
+        Lighting.FogEnd = 1000000
+        Lighting.FogStart = 0
+        local atm = Lighting:FindFirstChildOfClass("Atmosphere")
+        if atm then
+            atm.Density = 0
+            atm.Haze = 0
+            atm.Glare = 0
         end
-        atm.Density = 0
-        atm.Haze = 0
-        atm.Glare = 0
-    end
-    print("[REMOVE FOG] Enabled")
+    end)
+    
+    if self.Utils then self.Utils:AddConnection(self.RemoveFogConn) end
+    print("[REMOVE FOG] Enabled (Persistent)")
 end
 
 function Player:StopRemoveFog()
-    if originalFog.stored then
-        Lighting.FogEnd = originalFog.FogEnd
-        Lighting.FogStart = originalFog.FogStart
-    end
-    
-    local atm = Lighting:FindFirstChildOfClass("Atmosphere")
-    if atm and originalFog.AtmDensity ~= nil then
-        atm.Density = originalFog.AtmDensity
-        atm.Haze = originalFog.AtmHaze
-        atm.Glare = originalFog.AtmGlare
-        originalFog.AtmDensity = nil
-        originalFog.AtmHaze = nil
-        originalFog.AtmGlare = nil
+    self.RemoveFogActive = false
+    if self.RemoveFogConn then
+        self.RemoveFogConn:Disconnect()
+        self.RemoveFogConn = nil
     end
     print("[REMOVE FOG] Disabled")
+end
+
+-- ============================================
+-- INSTANT PROXIMITY PROMPT (GAME EXPLORER ATTRIBUTE HOOK)
+-- ============================================
+function Player:StartInstantProximityPrompt()
+    if self.InstantPromptActive then return end
+    self.InstantPromptActive = true
+    
+    local function applyToChar(char)
+        if char then
+            char:SetAttribute("InteractableUseSpeed", 9999)
+        end
+    end
+    
+    applyToChar(LocalPlayer.Character)
+    
+    self.InstantPromptConn = Workspace.DescendantAdded:Connect(function(descendant)
+        if descendant:IsA("ProximityPrompt") then
+            descendant.HoldDuration = 0
+        end
+    end)
+    
+    -- Also zero out all existing prompts
+    for _, prompt in ipairs(Workspace:GetDescendants()) do
+        if prompt:IsA("ProximityPrompt") then
+            prompt.HoldDuration = 0
+        end
+    end
+    
+    if self.Utils then self.Utils:AddConnection(self.InstantPromptConn) end
+    print("[INSTANT PROMPT] Enabled via InteractableUseSpeed attribute")
+end
+
+function Player:StopInstantProximityPrompt()
+    self.InstantPromptActive = false
+    if self.InstantPromptConn then
+        self.InstantPromptConn:Disconnect()
+        self.InstantPromptConn = nil
+    end
+    local char = LocalPlayer.Character
+    if char then
+        char:SetAttribute("InteractableUseSpeed", 1)
+    end
+    print("[INSTANT PROMPT] Disabled")
+end
+
+-- ============================================
+-- NATIVE ITEM ESP (USES GAME'S NEARBYHIGHLIGHTER ATTRIBUTE)
+-- ============================================
+function Player:StartNativeItemESP()
+    self.NativeItemESPActive = true
+    local char = LocalPlayer.Character
+    if char then
+        char:SetAttribute("NearbyItemESP", true)
+    end
+    print("[NATIVE ITEM ESP] Enabled via Character.NearbyItemESP")
+end
+
+function Player:StopNativeItemESP()
+    self.NativeItemESPActive = false
+    local char = LocalPlayer.Character
+    if char then
+        char:SetAttribute("NearbyItemESP", false)
+    end
+    print("[NATIVE ITEM ESP] Disabled")
+end
+
+-- ============================================
+-- ANTI HUNGER DRAIN (INFINITE HUNGER)
+-- ============================================
+function Player:StartAntiHungerDrain()
+    if self.AntiHungerActive then return end
+    self.AntiHungerActive = true
+    
+    self.AntiHungerConn = RunService.Heartbeat:Connect(function()
+        if not self.AntiHungerActive then return end
+        local char = LocalPlayer.Character
+        if char then
+            char:SetAttribute("HungerDrain", -10)
+            char:SetAttribute("Hunger", 100)
+        end
+    end)
+    
+    if self.Utils then self.Utils:AddConnection(self.AntiHungerConn) end
+    print("[ANTI HUNGER] Enabled")
+end
+
+function Player:StopAntiHungerDrain()
+    self.AntiHungerActive = false
+    if self.AntiHungerConn then
+        self.AntiHungerConn:Disconnect()
+        self.AntiHungerConn = nil
+    end
+    local char = LocalPlayer.Character
+    if char then
+        char:SetAttribute("HungerDrain", 0)
+    end
+    print("[ANTI HUNGER] Disabled")
+end
+
+-- ============================================
+-- UNLOCK ENTIRE MAP FOG (GAME DUMP STRUCTURE)
+-- ============================================
+function Player:UnlockEntireMap()
+    if self.Utils and self.Utils.UnlockEntireMap then
+        return self.Utils:UnlockEntireMap(self.Network, self.Notifications)
+    end
+    return 0
 end
 
 -- ============================================
@@ -478,6 +589,9 @@ function Player:SetupRespawnHandler()
         char:WaitForChild("HumanoidRootPart", 10)
         task.wait(0.5)
         
+        if self.SpeedHackConn then
+            self:StartSpeedHack(self.SpeedValue)
+        end
         if self.FlyActive then
             self:StartFly(self.FlySpeed)
         end
@@ -493,6 +607,15 @@ function Player:SetupRespawnHandler()
         if self.BhopActive then
             self:StartBunnyHop()
         end
+        if self.NativeItemESPActive then
+            self:StartNativeItemESP()
+        end
+        if self.InstantPromptActive then
+            self:StartInstantProximityPrompt()
+        end
+        if self.AntiHungerActive then
+            self:StartAntiHungerDrain()
+        end
     end)
 end
 
@@ -503,8 +626,8 @@ function Player:Init(modules)
     self.Utils = modules.utils or modules.Utils
     self.Notifications = modules.notifications or modules.Notifications
     self.Config = modules.config or modules.Config
+    self.Network = modules.network or modules.Network
     
-    -- Store original walk speed
     local char = LocalPlayer.Character
     if char then
         local humanoid = char:FindFirstChildOfClass("Humanoid")
@@ -514,7 +637,7 @@ function Player:Init(modules)
     end
     
     self:SetupRespawnHandler()
-    print("[PLAYER MODULE] Initialized")
+    print("[PLAYER MODULE] Initialized with game dump integration")
     return self
 end
 

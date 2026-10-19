@@ -49,6 +49,8 @@ Load("teleport")
 Load("player")
 Load("autoPickup")
 Load("killaura")  -- <-- TAMBAHKAN KILLAURA MODULE
+Load("weaponMods") -- <-- NEW WEAPON MODS MODULE
+Load("fakeClass")  -- <-- NEW FAKE CLASS & BYPASSES MODULE
 
 -- =======================================================
 -- SAFE INIT
@@ -104,6 +106,8 @@ InitModule("teleport")
 InitModule("player")
 InitModule("autoPickup")
 InitModule("killaura")  -- <-- TAMBAHKAN INIT KILLAURA
+InitModule("weaponMods") -- <-- TAMBAHKAN INIT WEAPON MODS
+InitModule("fakeClass")  -- <-- TAMBAHKAN INIT FAKE CLASS & BYPASSES
 
 -- UI init terakhir (karena butuh semua module)
 InitModule("ui")
