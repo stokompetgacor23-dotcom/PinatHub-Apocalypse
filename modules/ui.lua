@@ -238,19 +238,20 @@ function UI:BuildVisualsTab(tab)
     if not config then return end
     
     local options = config:GetOptions()
-    local crateOptions = config:GetCrateOptions()
+    local crateOptions = (config.GetCrateOptions and config:GetCrateOptions()) or (esp and esp.CrateOptions)
     
     -- Global ESP Settings
     local globalSection = tab:Section({ Title = "Global ESP Settings" })
     
     globalSection:Toggle({ 
         Title = "Show Names (All)", 
-        Value = false, 
+        Value = true, 
         Callback = function(value)
             if esp then
                 esp.MobOptions.Name = value
                 esp.PlayerESPVars.Name = value
                 esp.StructureESPVars.Name = value
+                esp.CrateOptions.Name = value
                 if crateOptions then crateOptions.Name = value end
                 if esp.SetAllItemNames then
                     esp:SetAllItemNames(value)
@@ -263,12 +264,13 @@ function UI:BuildVisualsTab(tab)
     
     globalSection:Toggle({ 
         Title = "Show Distance (All)", 
-        Value = false, 
+        Value = true, 
         Callback = function(value)
             if esp then
                 esp.MobOptions.Distance = value
                 esp.PlayerESPVars.Distance = value
                 esp.StructureESPVars.Distance = value
+                esp.CrateOptions.Distance = value
                 if crateOptions then crateOptions.Distance = value end
                 if esp.SetAllItemDistances then
                     esp:SetAllItemDistances(value)
@@ -278,76 +280,144 @@ function UI:BuildVisualsTab(tab)
             end
         end 
     })
+
+    globalSection:Toggle({ 
+        Title = "Show Chams (All)", 
+        Value = true, 
+        Callback = function(value)
+            if esp then
+                esp.MobOptions.Chams = value
+                esp.PlayerESPVars.Chams = value
+                esp.StructureESPVars.Chams = value
+                esp.CrateOptions.Chams = value
+                if crateOptions then crateOptions.Chams = value end
+                if esp.SetAllItemChams then
+                    esp:SetAllItemChams(value)
+                end
+                esp:RefreshAll()
+                print("[UI] Show Chams (All):", value)
+            end
+        end 
+    })
     
     -- Mob ESP
     local mobSection = tab:Section({ Title = "Mob ESP" })
     mobSection:Toggle({ Title = "Mob ESP", Value = false, Callback = function(value)
         if esp then
             esp.MobOptions.ESP = value
+            if value then
+                esp.MobOptions.Name = true
+                esp.MobOptions.Distance = true
+                esp.MobOptions.Chams = true
+            end
             esp:RefreshMobESP()
             if self.Notifications then 
                 self.Notifications:Show("Mob ESP", value and "Enabled" or "Disabled", 1)
             end
         end
     end })
-    mobSection:Toggle({ Title = "Mob Chams", Value = false, Callback = function(value)
+    mobSection:Toggle({ Title = "Mob Chams", Value = true, Callback = function(value)
         if esp then esp.MobOptions.Chams = value; esp:RefreshMobESP() end
     end })
-    mobSection:Toggle({ Title = "Mob Names", Value = false, Callback = function(value)
+    mobSection:Toggle({ Title = "Mob Names", Value = true, Callback = function(value)
         if esp then esp.MobOptions.Name = value; esp:RefreshMobESP() end
     end })
-    mobSection:Toggle({ Title = "Mob Distance", Value = false, Callback = function(value)
+    mobSection:Toggle({ Title = "Mob Distance", Value = true, Callback = function(value)
         if esp then esp.MobOptions.Distance = value; esp:RefreshMobESP() end
     end })
     
     -- Player ESP
     local playerSection = tab:Section({ Title = "Player ESP" })
     playerSection:Toggle({ Title = "Player ESP", Value = false, Callback = function(value)
-        if esp then esp.PlayerESPVars.ESP = value; esp:RefreshPlayerESP() end
+        if esp then
+            esp.PlayerESPVars.ESP = value
+            if value then
+                esp.PlayerESPVars.Name = true
+                esp.PlayerESPVars.Distance = true
+                esp.PlayerESPVars.Health = true
+                esp.PlayerESPVars.Chams = true
+            end
+            esp:RefreshPlayerESP()
+            if self.Notifications then
+                self.Notifications:Show("Player ESP", value and "Enabled" or "Disabled", 1)
+            end
+        end
     end })
-    playerSection:Toggle({ Title = "Player Chams", Value = false, Callback = function(value)
+    playerSection:Toggle({ Title = "Player Chams", Value = true, Callback = function(value)
         if esp then esp.PlayerESPVars.Chams = value; esp:RefreshPlayerESP() end
     end })
-    playerSection:Toggle({ Title = "Player Names", Value = false, Callback = function(value)
+    playerSection:Toggle({ Title = "Player Names", Value = true, Callback = function(value)
         if esp then esp.PlayerESPVars.Name = value; esp:RefreshPlayerESP() end
     end })
-    playerSection:Toggle({ Title = "Player Distance", Value = false, Callback = function(value)
+    playerSection:Toggle({ Title = "Player Distance", Value = true, Callback = function(value)
         if esp then esp.PlayerESPVars.Distance = value; esp:RefreshPlayerESP() end
     end })
-    playerSection:Toggle({ Title = "Show Health", Value = false, Callback = function(value)
+    playerSection:Toggle({ Title = "Show Health", Value = true, Callback = function(value)
         if esp then esp.PlayerESPVars.Health = value; esp:RefreshPlayerESP() end
     end })
     
     -- Structure ESP
     local structureSection = tab:Section({ Title = "Structure ESP" })
     structureSection:Toggle({ Title = "Structure ESP", Value = false, Callback = function(value)
-        if esp then esp.StructureESPVars.ESP = value; esp:RefreshStructureESP() end
+        if esp then
+            esp.StructureESPVars.ESP = value
+            if value then
+                esp.StructureESPVars.Name = true
+                esp.StructureESPVars.Distance = true
+                esp.StructureESPVars.Chams = true
+            end
+            esp:RefreshStructureESP()
+            if self.Notifications then
+                self.Notifications:Show("Structure ESP", value and "Enabled" or "Disabled", 1)
+            end
+        end
     end })
-    structureSection:Toggle({ Title = "Structure Chams", Value = false, Callback = function(value)
+    structureSection:Toggle({ Title = "Structure Chams", Value = true, Callback = function(value)
         if esp then esp.StructureESPVars.Chams = value; esp:RefreshStructureESP() end
     end })
-    structureSection:Toggle({ Title = "Structure Names", Value = false, Callback = function(value)
+    structureSection:Toggle({ Title = "Structure Names", Value = true, Callback = function(value)
         if esp then esp.StructureESPVars.Name = value; esp:RefreshStructureESP() end
     end })
-    structureSection:Toggle({ Title = "Structure Distance", Value = false, Callback = function(value)
+    structureSection:Toggle({ Title = "Structure Distance", Value = true, Callback = function(value)
         if esp then esp.StructureESPVars.Distance = value; esp:RefreshStructureESP() end
     end })
     
     -- Crates ESP
     local cratesSection = tab:Section({ Title = "Crates ESP" })
     cratesSection:Toggle({ Title = "Crates ESP", Value = false, Callback = function(value)
-        if crateOptions then crateOptions.ESP = value end
+        if esp then
+            esp.CrateOptions.ESP = value
+            if value then
+                esp.CrateOptions.Name = true
+                esp.CrateOptions.Distance = true
+                esp.CrateOptions.Chams = true
+            end
+        end
+        if crateOptions then
+            crateOptions.ESP = value
+            if value then
+                crateOptions.Name = true
+                crateOptions.Distance = true
+                crateOptions.Chams = true
+            end
+        end
         if esp and esp.RefreshCrateESP then esp:RefreshCrateESP() end
+        if self.Notifications then
+            self.Notifications:Show("Crates ESP", value and "Enabled" or "Disabled", 1)
+        end
     end })
-    cratesSection:Toggle({ Title = "Crates Chams", Value = false, Callback = function(value)
+    cratesSection:Toggle({ Title = "Crates Chams", Value = true, Callback = function(value)
+        if esp then esp.CrateOptions.Chams = value end
         if crateOptions then crateOptions.Chams = value end
         if esp and esp.RefreshCrateESP then esp:RefreshCrateESP() end
     end })
-    cratesSection:Toggle({ Title = "Crates Names", Value = false, Callback = function(value)
+    cratesSection:Toggle({ Title = "Crates Names", Value = true, Callback = function(value)
+        if esp then esp.CrateOptions.Name = value end
         if crateOptions then crateOptions.Name = value end
         if esp and esp.RefreshCrateESP then esp:RefreshCrateESP() end
     end })
-    cratesSection:Toggle({ Title = "Crates Distance", Value = false, Callback = function(value)
+    cratesSection:Toggle({ Title = "Crates Distance", Value = true, Callback = function(value)
+        if esp then esp.CrateOptions.Distance = value end
         if crateOptions then crateOptions.Distance = value end
         if esp and esp.RefreshCrateESP then esp:RefreshCrateESP() end
     end })
@@ -356,13 +426,17 @@ function UI:BuildVisualsTab(tab)
     local itemSection = tab:Section({ Title = "Item ESP (Dropped Items)" })
     itemSection:Paragraph({ Title = "Item ESP Settings", Desc = "Enable ESP for items dropped on the ground" })
     itemSection:Divider()
-    itemSection:Toggle({ Title = "All Items Chams", Value = false, Callback = function(value)
+    itemSection:Toggle({ Title = "All Items ESP (Master)", Value = false, Callback = function(value)
+        if esp and esp.SetAllItemsEnabled then esp:SetAllItemsEnabled(value) end
+        if self.Notifications then self.Notifications:Show("All Items ESP", value and "Enabled - All Ground Items ON" or "Disabled", 2) end
+    end })
+    itemSection:Toggle({ Title = "All Items Chams", Value = true, Callback = function(value)
         if esp and esp.SetAllItemChams then esp:SetAllItemChams(value) end
     end })
-    itemSection:Toggle({ Title = "All Items Names", Value = false, Callback = function(value)
+    itemSection:Toggle({ Title = "All Items Names", Value = true, Callback = function(value)
         if esp and esp.SetAllItemNames then esp:SetAllItemNames(value) end
     end })
-    itemSection:Toggle({ Title = "All Items Distance", Value = false, Callback = function(value)
+    itemSection:Toggle({ Title = "All Items Distance", Value = true, Callback = function(value)
         if esp and esp.SetAllItemDistances then esp:SetAllItemDistances(value) end
     end })
     itemSection:Toggle({ Title = "Item Tier Colors (Game Rarity)", Value = false, Callback = function(value)
@@ -381,6 +455,9 @@ function UI:BuildVisualsTab(tab)
                 Callback = function(value)
                     if esp.SetItemCategoryEnabled then
                         esp:SetItemCategoryEnabled(def.key, value)
+                    end
+                    if self.Notifications then
+                        self.Notifications:Show(def.displayName, value and "Enabled" or "Disabled", 1)
                     end
                 end
             })

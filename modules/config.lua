@@ -306,9 +306,9 @@ Config.SupportedMaps = {
 -- Crate options
 Config.CrateOptions = {
     ESP = false,
-    Chams = false,
-    Name = false,
-    Distance = false,
+    Chams = true,
+    Name = true,
+    Distance = true,
     MaxDistance = 500,
     HideOpened = true,
     ChamsColor = Color3.fromRGB(255, 200, 50),
