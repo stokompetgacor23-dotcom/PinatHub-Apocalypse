@@ -42,7 +42,8 @@ Config.Options = {
     ClassLevel = 3,
     SelectedPerk = "Specialist",
     SuperDragRange = 500,
-    ScrapDamageBoost = 10,
+    ScrapDamageBoost = 100,
+    AutoStowToBag = true,
 }
 
 -- Default Toggles
@@ -70,11 +71,9 @@ Config.Toggles = {
     RemoveFog = false,
     FPSUnlock = false,
     AutoPickup = false,
+    AutoStowToBag = true,
     AllItems = false,
-    BringPickupItem = false,
-    BringAllPickup = false,
     AutoHunt = false,
-    ProximityPromptAntiDelay = false,
     InstantProximityPrompt = false,
     AutoDestroyStructure = false,
     AutoHuntFuel = false,

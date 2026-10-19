@@ -44,13 +44,12 @@ Load("ui")
 -- Feature modules
 Load("esp")
 Load("farm")
-Load("bring")
 Load("teleport")
 Load("player")
 Load("autoPickup")
-Load("killaura")  -- <-- TAMBAHKAN KILLAURA MODULE
-Load("weaponMods") -- <-- NEW WEAPON MODS MODULE
-Load("fakeClass")  -- <-- NEW FAKE CLASS & BYPASSES MODULE
+Load("killaura")
+Load("weaponMods")
+Load("fakeClass")
 
 -- =======================================================
 -- SAFE INIT
@@ -101,13 +100,12 @@ InitModule("notifications")
 -- Feature modules init (inisialisasi sebelum UI)
 InitModule("esp")
 InitModule("farm")
-InitModule("bring")
 InitModule("teleport")
 InitModule("player")
 InitModule("autoPickup")
-InitModule("killaura")  -- <-- TAMBAHKAN INIT KILLAURA
-InitModule("weaponMods") -- <-- TAMBAHKAN INIT WEAPON MODS
-InitModule("fakeClass")  -- <-- TAMBAHKAN INIT FAKE CLASS & BYPASSES
+InitModule("killaura")
+InitModule("weaponMods")
+InitModule("fakeClass")
 
 -- UI init terakhir (karena butuh semua module)
 InitModule("ui")

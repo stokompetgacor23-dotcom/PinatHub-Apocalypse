@@ -85,57 +85,6 @@ function UI:CreateLogo()
     return logoGui, logoButton
 end
 
--- Setup proximity prompt anti-delay (SAME)
--- Setup proximity prompt anti-delay (ENHANCED)
-function UI:SetupProximityPromptAntiDelay()
-    local proximityPromptActive = false
-    local connections = {}
-    
-    local function enableProximityPromptAntiDelay()
-        if proximityPromptActive then return end
-        proximityPromptActive = true
-        
-        -- Instant set for existing ones
-        for _, v in ipairs(workspace:GetDescendants()) do
-            if v:IsA("ProximityPrompt") then
-                v.HoldDuration = 0
-            end
-        end
-        
-        -- Listen for new prompts
-        table.insert(connections, workspace.DescendantAdded:Connect(function(v)
-            if proximityPromptActive and v:IsA("ProximityPrompt") then
-                v.HoldDuration = 0
-            end
-        end))
-
-        -- Listen for shown prompts (to override script-set duration like Revive)
-        local ProximityPromptService = game:GetService("ProximityPromptService")
-        table.insert(connections, ProximityPromptService.PromptShown:Connect(function(prompt)
-            if proximityPromptActive then
-                prompt.HoldDuration = 0
-            end
-        end))
-
-        -- Listen for hold begin (some scripts set duration here)
-        table.insert(connections, ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
-            if proximityPromptActive then
-                prompt.HoldDuration = 0
-            end
-        end))
-    end
-    
-    local function disableProximityPromptAntiDelay()
-        proximityPromptActive = false
-        for _, conn in ipairs(connections) do
-            conn:Disconnect()
-        end
-        connections = {}
-    end
-    
-    return enableProximityPromptAntiDelay, disableProximityPromptAntiDelay
-end
-
 -- ============================================
 -- INIT FUNCTION (WITH BRAINROT UI STYLE)
 -- ============================================
@@ -151,7 +100,6 @@ function UI:Init(modules)
     self.Utils = modules.utils or modules.Utils
     self.ESP = modules.esp or modules.ESP
     self.Farm = modules.farm or modules.Farm
-    self.Bring = modules.bring or modules.Bring
     self.Teleport = modules.teleport or modules.Teleport
     self.Network = modules.network or modules.Network
     self.Notifications = modules.notifications or modules.Notifications
@@ -200,9 +148,6 @@ function UI:Init(modules)
     
     -- Create Logo
     local logoGui, logoButton = self:CreateLogo()
-    
-    -- Setup Proximity Prompt Anti-Delay
-    self.EnableProximityPrompt, self.DisableProximityPrompt = self:SetupProximityPromptAntiDelay()
 
     self.GuiVisible = true
     logoButton.MouseButton1Click:Connect(function()
@@ -580,17 +525,6 @@ function UI:BuildPlayerTab(tab)
         else
             if playerModule and playerModule.StopInstantProximityPrompt then playerModule:StopInstantProximityPrompt() end
             if self.Notifications then self.Notifications:Show("Proximity Speed", "Disabled", 2) end
-        end
-    end })
-    
-    survivalSection:Toggle({ Title = "Native Item ESP (Built-in Game Highlight)", Value = false, Callback = function(v)
-        toggles.NativeItemESP = v
-        if v then
-            if playerModule and playerModule.StartNativeItemESP then playerModule:StartNativeItemESP() end
-            if self.Notifications then self.Notifications:Show("Native Item ESP", "Enabled - Game highlight active!", 2) end
-        else
-            if playerModule and playerModule.StopNativeItemESP then playerModule:StopNativeItemESP() end
-            if self.Notifications then self.Notifications:Show("Native Item ESP", "Disabled", 2) end
         end
     end })
 
@@ -1128,9 +1062,9 @@ function UI:BuildExploitsTab(tab)
     local toggles = config:GetToggles()
     local farm = self.Farm
     local autoPickup = self.AutoPickup
-    local bring = self.Bring
     local network = self.Network
     local notifications = self.Notifications
+    local fakeClass = self.FakeClass
     
     -- Auto Pickup Section
     local autoPickupSection = tab:Section({ Title = "Auto Pickup Item" })
@@ -1146,28 +1080,32 @@ function UI:BuildExploitsTab(tab)
             end
         end
     end })
+    autoPickupSection:Toggle({ 
+        Title = "Auto Stow to Bag (Masukkan ke Tas)", 
+        Value = true, 
+        Callback = function(v) 
+            options.AutoStowToBag = v 
+            if autoPickup and autoPickup.Options then 
+                autoPickup.Options.AutoStowToBag = v 
+            end 
+        end 
+    })
     autoPickupSection:Toggle({ Title = "Pickup All Items", Value = true, Callback = function(v) options.AutoPickupAll = v end })
     autoPickupSection:Slider({ Title = "Pickup Range", Value = { Min = 12, Max = 200, Default = options.AutoPickupRange or 50 }, Callback = function(v) options.AutoPickupRange = v end })
     autoPickupSection:Slider({ Title = "Pickup Delay", Value = { Min = 0.05, Max = 1, Default = options.AutoPickupDelay or 0.1, Decimals = 2 }, Callback = function(v) options.AutoPickupDelay = v end })
     
-    -- Bring Pickup Section
-    local bringSection = tab:Section({ Title = "Bring Pickup Item" })
-    bringSection:Toggle({ Title = "Bring Pickup Item", Value = false, Callback = function(v) 
-        toggles.BringPickupItem = v
-        if v then 
-            if bring and bring.Start then bring:Start(config, network, self.Utils) end
-        else 
-            if bring and bring.Stop then bring:Stop() end
-        end
-    end })
-    bringSection:Toggle({ Title = "All Pickup Items", Value = false, Callback = function(v) toggles.BringAllPickup = v end })
-    bringSection:Dropdown({ Title = "Sort Order", Values = { "Nearest First", "Farthest First", "Alphabetical", "Reverse Alphabetical" }, Default = 1, Callback = function(v) options.BringPickupSortOrder = v end })
-    
-    -- Auto Destroy Structure
-    local autoDestroySection = tab:Section({ Title = "Auto Destroy Structure" })
-    autoDestroySection:Toggle({ Title = "Auto Destroy (Barrel & Scrap Pile)", Value = false, Callback = function(v) 
+    -- Auto Destroy Structure (Barrel & Scrap Pile)
+    local autoDestroySection = tab:Section({ Title = "Auto Destroy (Barrel & Scrap Pile)" })
+    autoDestroySection:Paragraph({
+        Title = "1-Hit Scrap & Barrels Breaker",
+        Desc = "Automatically targets Barrels and Scrap Piles within range, equips melee tools, and breaks them in 1 hit using ScrapDamageBoost bypass."
+    })
+    autoDestroySection:Toggle({ Title = "Auto Destroy (1-Hit Break)", Value = false, Callback = function(v) 
         toggles.AutoDestroyStructure = v
         if v then 
+            if fakeClass and fakeClass.StartInstantBreakScrap then 
+                fakeClass:StartInstantBreakScrap(100) 
+            end
             if farm and farm.StartAutoDestroy then 
                 farm:StartAutoDestroy(notifications)
             end
@@ -1310,18 +1248,6 @@ function UI:BuildMiscTab(tab)
             if playerModule then playerModule:StopRemoveFog() end
             if self.Notifications then self.Notifications:Show("Remove Fog", "Disabled", 2) end
         end
-    end })
-    
-    -- Proximity Prompt Section
-    local proximitySection = tab:Section({ Title = "ProximityPrompt" })
-    proximitySection:Toggle({ Title = "Anti Delay ProximityPrompt", Value = false, Callback = function(v) 
-        toggles.ProximityPromptAntiDelay = v
-        if v then
-            if self.EnableProximityPrompt then self.EnableProximityPrompt() end
-        else
-            if self.DisableProximityPrompt then self.DisableProximityPrompt() end
-        end
-        if self.Notifications then self.Notifications:Show("ProximityPrompt", v and "Anti Delay Enabled" or "Anti Delay Disabled", 2) end
     end })
     
     -- FPS Unlock

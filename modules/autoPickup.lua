@@ -1,6 +1,6 @@
 -- =======================================================
 -- PINATHUB - AUTO PICKUP MODULE (UPDATED WITH GAME DUMP INTEGRATION)
--- Uses official PickUpItem remote & DroppedItemSwarm fast queries
+-- Uses official PickUpItem remote & DragRange bypass + Auto Stow to Bag
 -- =======================================================
 
 local Players = game:GetService("Players")
@@ -13,6 +13,8 @@ local AutoPickup = {}
 
 AutoPickup.Active = false
 AutoPickup.Connection = nil
+AutoPickup.CharChildAddedConn = nil
+AutoPickup.CharAddedConn = nil
 AutoPickup.PickupCategories = {
     All = true,
     Ammo = true,
@@ -27,6 +29,60 @@ AutoPickup.PickupCategories = {
 }
 
 -- ============================================
+-- HELPER: STOW TOOLS INTO BACKPACK (TAS)
+-- ============================================
+function AutoPickup:StowToolsToBag()
+    pcall(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        
+        -- Unlock backpack attribute if locked by game
+        LocalPlayer:SetAttribute("BackpackLocked", nil)
+        
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            hum:UnequipTools()
+        end
+    end)
+end
+
+-- ============================================
+-- SETUP CHARACTER LISTENER FOR AUTO STOW
+-- ============================================
+function AutoPickup:SetupBagListener()
+    if self.CharChildAddedConn then
+        self.CharChildAddedConn:Disconnect()
+        self.CharChildAddedConn = nil
+    end
+    
+    local function connectChar(char)
+        if not char then return end
+        if self.CharChildAddedConn then
+            self.CharChildAddedConn:Disconnect()
+            self.CharChildAddedConn = nil
+        end
+        
+        self.CharChildAddedConn = char.ChildAdded:Connect(function(child)
+            if not self.Active then return end
+            if child:IsA("Tool") then
+                -- Automatically stow newly picked-up tool into backpack / tas
+                task.defer(function()
+                    self:StowToolsToBag()
+                end)
+            end
+        end)
+    end
+    
+    connectChar(LocalPlayer.Character)
+    
+    if not self.CharAddedConn then
+        self.CharAddedConn = LocalPlayer.CharacterAdded:Connect(function(char)
+            connectChar(char)
+        end)
+    end
+end
+
+-- ============================================
 -- START AUTO PICKUP
 -- ============================================
 function AutoPickup:Start(options, notifications)
@@ -37,6 +93,9 @@ function AutoPickup:Start(options, notifications)
     local configPickupSet = (self.Config and self.Config:GetPickupItemSet()) or {}
     local utils = self.Utils
     local network = self.Network
+    
+    -- Setup auto-stow listener so all picked items go into bag (tas)
+    self:SetupBagListener()
     
     local lastPickupTick = 0
     
@@ -58,6 +117,11 @@ function AutoPickup:Start(options, notifications)
             local pickupRange = self.Options.AutoPickupRange or 50
             local pickupAll = self.Options.AutoPickupAll
             if pickupAll == nil then pickupAll = true end
+            
+            -- Game Dump Line 36665: Server checks (12 + DragRange)
+            -- Setting DragRange bypasses server-side distance rejection!
+            char:SetAttribute("DragRange", math.max(pickupRange + 25, 100))
+            LocalPlayer:SetAttribute("BackpackLocked", nil)
             
             -- Fast query using DroppedItemSwarm if available or DroppedItems folder
             local candidateItems = {}
@@ -98,7 +162,7 @@ function AutoPickup:Start(options, notifications)
             -- Sort by nearest first
             table.sort(itemsToPickup, function(a, b) return a.dist < b.dist end)
             
-            -- Pick up top candidate(s)
+            -- Pick up candidate(s)
             for _, target in ipairs(itemsToPickup) do
                 if not self.Active then break end
                 if not target.item.Parent then continue end
@@ -118,6 +182,10 @@ function AutoPickup:Start(options, notifications)
                 
                 if success then
                     lastPickupTick = tick()
+                    -- Automatically stow picked item into bag (Backpack)
+                    task.defer(function()
+                        self:StowToolsToBag()
+                    end)
                 end
                 
                 -- Process single item per step if not picking up all in one frame
@@ -129,9 +197,9 @@ function AutoPickup:Start(options, notifications)
     end)
     
     if notifications then
-        notifications:Show("Auto Pickup", "Enabled - Range: " .. (self.Options.AutoPickupRange or 50) .. " studs", 2)
+        notifications:Show("Auto Pickup", "Enabled - Range: " .. (self.Options.AutoPickupRange or 50) .. " studs (Auto Stow into Bag)", 2)
     end
-    print("[AUTO PICKUP] Started - Range:", self.Options.AutoPickupRange or 50)
+    print("[AUTO PICKUP] Started with Auto Stow into Bag - Range:", self.Options.AutoPickupRange or 50)
 end
 
 -- ============================================
@@ -143,6 +211,16 @@ function AutoPickup:Stop(notifications)
     if self.Connection then
         self.Connection:Disconnect()
         self.Connection = nil
+    end
+    
+    if self.CharChildAddedConn then
+        self.CharChildAddedConn:Disconnect()
+        self.CharChildAddedConn = nil
+    end
+    
+    if self.CharAddedConn then
+        self.CharAddedConn:Disconnect()
+        self.CharAddedConn = nil
     end
     
     if notifications then
@@ -161,7 +239,7 @@ function AutoPickup:Init(deps)
     self.Notifications = deps.notifications or deps.Notifications
     self.Network = deps.network or deps.Network
     
-    print("[AUTO PICKUP MODULE] Initialized with official PickUpItem remote")
+    print("[AUTO PICKUP MODULE] Initialized with official PickUpItem remote & Auto Stow to Bag")
     return self
 end
 

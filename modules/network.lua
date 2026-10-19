@@ -197,14 +197,17 @@ function Network:FireToolAttack(tool, targets, hitPos)
         attackSuccess = true
     end
     
-    -- 3. Standard Melee: Swing + HitTargets
+    -- 3. Standard Melee: Swing + Hit / HitTargets
     local swing = tool:FindFirstChild("Swing")
-    local hitTargets = tool:FindFirstChild("HitTargets")
-    if swing and hitTargets then
+    local hit = tool:FindFirstChild("Hit") or tool:FindFirstChild("HitTargets")
+    if swing and hit then
         pcall(function()
             swing:FireServer()
-            hitTargets:FireServer(targetList)
+            hit:FireServer(targetList)
         end)
+        attackSuccess = true
+    elseif hit then
+        pcall(function() hit:FireServer(targetList) end)
         attackSuccess = true
     elseif swing then
         pcall(function() swing:FireServer() end)
@@ -220,13 +223,13 @@ function Network:FireToolAttack(tool, targets, hitPos)
         attackSuccess = true
     end
     
-    -- 5. Fallback tool:Activate()
-    if not attackSuccess then
-        pcall(function()
+    -- 5. Fallback tool:Activate() with burst for instant break
+    pcall(function()
+        for _ = 1, 3 do
             tool:Activate()
-        end)
-        attackSuccess = true
-    end
+        end
+    end)
+    attackSuccess = true
     
     return attackSuccess
 end

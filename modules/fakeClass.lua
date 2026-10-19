@@ -717,13 +717,23 @@ end
 -- =======================================================
 function FakeClass:StartInstantBreakScrap(boost)
     self.InstantBreakScrapActive = true
-    local val = boost or 10
+    local val = boost or 100
     
     local conn = RunService.Heartbeat:Connect(function()
         if not self.InstantBreakScrapActive then return end
         local char = LocalPlayer.Character
         if char then
             char:SetAttribute("ScrapDamageBoost", val)
+            char:SetAttribute("MeleeDamage", 50)
+            char:SetAttribute("MeleeAttackSpeed", 50)
+            
+            local tool = char:FindFirstChildOfClass("Tool")
+            if tool and tool:FindFirstChild("Stats") then
+                pcall(function()
+                    tool.Stats:SetAttribute("Damage", 9999)
+                    tool.Stats:SetAttribute("ScrapDamage", 9999)
+                end)
+            end
         end
     end)
     
@@ -736,6 +746,8 @@ function FakeClass:StopInstantBreakScrap()
     local char = LocalPlayer.Character
     if char then
         char:SetAttribute("ScrapDamageBoost", nil)
+        char:SetAttribute("MeleeDamage", nil)
+        char:SetAttribute("MeleeAttackSpeed", nil)
     end
     print("[BYPASS] Instant Break Scrap Disabled")
 end

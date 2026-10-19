@@ -346,11 +346,13 @@ function Farm:FindDestroyableStructures()
     local destroyableNames = {"Barrel", "Scrap Pile"}
     
     local candidateFolders = {}
-    local folders = self.Utils:DiscoverFolders()
-    if folders.structuresFolder then table.insert(candidateFolders, folders.structuresFolder) end
+    local structFolder = Workspace:FindFirstChild("Structures")
+    if structFolder then table.insert(candidateFolders, structFolder) end
     
-    local droppedItems = Workspace:FindFirstChild("DroppedItems")
-    if droppedItems then table.insert(candidateFolders, droppedItems) end
+    local folders = self.Utils and self.Utils:DiscoverFolders() or {}
+    if folders.structuresFolder and not table.find(candidateFolders, folders.structuresFolder) then 
+        table.insert(candidateFolders, folders.structuresFolder) 
+    end
     
     local map = Workspace:FindFirstChild("Map")
     local crates = map and map:FindFirstChild("Crates")
@@ -373,7 +375,7 @@ function Farm:FindDestroyableStructures()
                 
                 if mainPart and mainPart.Parent then
                     local dist = (mainPart.Position - myPos).Magnitude
-                    if dist <= 18 then
+                    if dist <= 22 then
                         table.insert(targets, {
                             structure = child,
                             part = mainPart,
@@ -398,6 +400,17 @@ function Farm:GetDestroyTool()
     
     local backpack = LocalPlayer:FindFirstChild("Backpack")
     if backpack then
+        -- Priority for melee tools
+        local meleeNames = {"Crowbar", "Bat", "Spiked Bat", "Scythe", "Knife", "Katana", "Hatchet", "Hammer", "Axe"}
+        for _, mName in ipairs(meleeNames) do
+            for _, tool in ipairs(backpack:GetChildren()) do
+                if tool:IsA("Tool") and string.find(tool.Name, mName) then
+                    pcall(function() tool.Parent = char end)
+                    task.wait(0.05)
+                    return tool
+                end
+            end
+        end
         for _, tool in ipairs(backpack:GetChildren()) do
             if tool:IsA("Tool") then
                 pcall(function() tool.Parent = char end)
@@ -410,29 +423,60 @@ function Farm:GetDestroyTool()
 end
 
 function Farm:DestroyStructure(structure)
+    local char = LocalPlayer.Character
+    if not char or not structure or not structure.Parent then return false end
+    
     local tool = self:GetDestroyTool()
     if not tool then return false end
+    
+    -- Game Dump Line 14983: Explorer Class ScrapDamageBoost = 1 (2x damage)
+    -- Injecting 100x ScrapDamageBoost + MeleeDamage guarantees 1-hit destruction
+    pcall(function()
+        char:SetAttribute("ScrapDamageBoost", 100)
+        char:SetAttribute("MeleeDamage", 50)
+        char:SetAttribute("MeleeAttackSpeed", 50)
+    end)
+    
+    -- Boost weapon stats if present
+    if tool:FindFirstChild("Stats") then
+        pcall(function()
+            tool.Stats:SetAttribute("Damage", 9999)
+            tool.Stats:SetAttribute("ScrapDamage", 9999)
+        end)
+    end
     
     if self.Network and self.Network.FireToolAttack then
         return self.Network:FireToolAttack(tool, {structure})
     end
     
     local swing = tool:FindFirstChild("Swing")
-    local hitTargets = tool:FindFirstChild("HitTargets")
+    local hit = tool:FindFirstChild("Hit") or tool:FindFirstChild("HitTargets")
+    local powerSwing = tool:FindFirstChild("PowerSwingRemote")
+    local strikeRemote = tool:FindFirstChild("StrikeRemote")
     local remoteClick = tool:FindFirstChild("RemoteClick")
     
-    if swing and hitTargets then
+    if powerSwing then
+        pcall(function() powerSwing:FireServer({structure}, {100}, structure:GetPivot()) end)
+    end
+    if strikeRemote then
+        pcall(function() strikeRemote:FireServer(structure:GetPivot()) end)
+    end
+    if swing and hit then
         pcall(function() 
             swing:FireServer() 
-            hitTargets:FireServer({structure})
+            hit:FireServer({structure})
         end)
-        return true
+    elseif hit then
+        pcall(function() hit:FireServer({structure}) end)
     elseif remoteClick then
         pcall(function() remoteClick:FireServer(structure) end)
-        return true
     end
     
-    pcall(function() tool:Activate() end)
+    pcall(function() 
+        for _ = 1, 3 do
+            tool:Activate() 
+        end
+    end)
     return true
 end
 
